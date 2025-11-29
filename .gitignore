@@ -1,0 +1,30 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules/
+vendor/
+
+# Environment
+*.env
+.env.*
+
+# Esocontext - AI task tracking (user-specific)
+docs/ai/tasks/

@@ -1,44 +1,152 @@
-# Esocontext Framework Core
+# Esocontext Framework
 
 > **DO NOT MODIFY FILES IN THIS DIRECTORY**
+>
+> This folder contains the core Esocontext framework files. These are managed by the installer and will be overwritten during updates.
 
-This folder contains the core Esocontext framework files. These are managed by the Esocontext installer and will be overwritten during updates.
+---
 
-## What This Contains
+## Quick Start
 
-- `version.json` - Framework version tracking
-- `templates/` - Jump-file templates for all AI platforms
-- `agents/` - Standard agent definitions and creation guidelines
-- `standards/` - Coding and behavioral standards
-- `bin/` - CLI tools (install, update, quickref generation)
+After installation, customize your project context in `docs/ai/context.md`. AI assistants will automatically read this file when they start.
 
-## User-Customizable Locations
+---
 
-Your custom content belongs in these locations:
+## Available Tools
 
-| Purpose | Location |
-|---------|----------|
-| Project context | `docs/context.md` |
-| Project documentation | `docs/` |
-| Custom agents | `docs/ai/agents/` |
-| Quick references | `docs/ai/quickrefs/` |
-| Task tracking | `docs/ai/tasks/` (gitignored) |
+Esocontext includes AI tool guides - markdown files that AI assistants read and follow to perform tasks. Ask your AI assistant to use these tools with natural language.
 
-## Updating Esocontext
+### Standards Detector
 
-To update to the latest version:
+Analyzes your codebase to detect and document coding standards.
 
-```bash
-curl -fsSL https://esocontext.dev/update.sh | bash
+**How to use:** Ask your AI assistant:
+> "Detect the coding standards for this project"
+> "Analyze my code and create coding standards"
+> "Generate standards documentation from my source files"
+
+**What it does:**
+1. Scans for source files (PHP, JS, TS, etc.)
+2. Checks for config files (.eslintrc, phpcs.xml, etc.)
+3. Analyzes patterns (indentation, naming, braces)
+4. Creates standards files in `docs/ai/standards/`
+
+**Guide:** [tools/standards-detector.tool.md](tools/standards-detector.tool.md)
+
+---
+
+### Quickref Generator
+
+Creates condensed, AI-friendly references from large documentation files.
+
+**How to use:** Ask your AI assistant:
+> "Generate a quickref for docs/classes/user-service.md"
+> "Create a quick reference for the API documentation"
+> "Make a condensed reference for this class"
+
+**What it does:**
+1. Reads source documentation
+2. Extracts method/API signatures
+3. Creates scannable reference tables
+4. Outputs to `docs/ai/quickrefs/{name}.quickref.md`
+
+**When to use:**
+- Documentation exceeds ~200 lines
+- Methods are frequently looked up
+- AI needs method awareness without full context
+
+**Guide:** [tools/quickref.tool.md](tools/quickref.tool.md)
+
+---
+
+### Agent Creator
+
+Creates new AI agent definitions following Esocontext patterns.
+
+**How to use:** Ask your AI assistant:
+> "Create an agent for database operations"
+> "Make a new agent for the authentication system"
+> "Generate an agent definition for React components"
+
+**What it does:**
+1. Determines agent scope and responsibilities
+2. Creates supporting docs if needed
+3. Generates agent file from template
+4. Outputs to `docs/ai/agents/{domain}-expert.agent.md`
+
+**Guide:** [tools/agent-creator.tool.md](tools/agent-creator.tool.md)
+
+---
+
+## Directory Structure
+
+```
+docs/ai/
+├── .context/           # Framework files (DO NOT MODIFY)
+│   ├── agents/         # Base agent definitions
+│   ├── standards/      # Default coding/behavioral standards
+│   ├── templates/      # Platform jump-files and standards templates
+│   ├── tools/          # AI tool guides
+│   └── bin/            # Install/update scripts
+├── agents/             # Your custom agents (user-editable)
+├── standards/          # Your project standards (user-editable)
+├── quickrefs/          # Generated quick references
+├── tasks/              # Task tracking (gitignored)
+└── context.md          # Your project context (user-editable)
 ```
 
-Or if you have the CLI installed:
+---
+
+## Standards Resolution
+
+When AI looks up coding standards for a language:
+
+1. **User Standards (First):** `docs/ai/standards/{language}.standards.md`
+2. **Framework Standards (Fallback):** `docs/ai/.context/templates/standards/{language}.standards.md`
+3. **General Principles (Always):** `docs/ai/.context/standards/coding-standards.md`
+
+---
+
+## Framework Scripts
+
+### install.sh
 
 ```bash
-esocontext update
+# Remote installation
+curl -fsSL https://esocontext.dev/install.sh | bash
+
+# With options
+curl -fsSL https://esocontext.dev/install.sh | bash -s -- --force
 ```
+
+**Options:**
+- `--force` - Overwrite existing files
+- `--no-git` - Don't modify .gitignore
+
+### update.sh
+
+```bash
+./docs/ai/.context/bin/update.sh
+```
+
+Updates framework files while preserving your customizations.
+
+---
+
+## Agents vs Tools
+
+| Type | Purpose | Location |
+|------|---------|----------|
+| **Agent** | Persona with expertise, decision-making | `agents/*.agent.md` |
+| **Tool** | Step-by-step process guide | `tools/*.tool.md` |
+
+**Agents** define *who* the AI is acting as (e.g., "documentation expert").
+**Tools** define *how* to accomplish a specific task (e.g., "follow these steps to generate a quickref").
+
+---
 
 ## Support
 
 - Documentation: https://esocontext.dev
-- Issues: https://github.com/esocontext/esocontext/issues
+- Repository: https://github.com/esotech/esocontext
+- Issues: https://github.com/esotech/esocontext/issues

@@ -37,12 +37,12 @@ async function initCommand(options) {
     // 1. Create directory structure
     console.log(chalk_1.default.blue('[INFO] Creating directory structure...'));
     const dirs = [
-        'docs/ai/.context/templates/platforms',
-        'docs/ai/.context/templates/standards',
-        'docs/ai/.context/agents',
-        'docs/ai/.context/standards',
-        'docs/ai/.context/bin',
-        'docs/ai/.context/tools',
+        'docs/ai/.contextuate/templates/platforms',
+        'docs/ai/.contextuate/templates/standards',
+        'docs/ai/.contextuate/agents',
+        'docs/ai/.contextuate/standards',
+        'docs/ai/.contextuate/bin',
+        'docs/ai/.contextuate/tools',
         'docs/ai/agents',
         'docs/ai/standards',
         'docs/ai/quickrefs',
@@ -57,18 +57,18 @@ async function initCommand(options) {
     // 2. Copy templates
     console.log(chalk_1.default.blue('[INFO] Installing framework files...'));
     // Define source directory (where the package is installed)
-    // In development, this is likely ../../docs/ai/.context relative to this file
+    // In development, this is likely ../../docs/ai/.contextuate relative to this file
     // In production (dist), it might be different. We need to handle both.
-    let templateSource = path_1.default.join(__dirname, '../../docs/ai/.context');
+    let templateSource = path_1.default.join(__dirname, '../../docs/ai/.contextuate');
     if (!fs_extra_1.default.existsSync(templateSource)) {
         // Try resolving from package root if running from dist
-        templateSource = path_1.default.join(__dirname, '../../../docs/ai/.context');
+        templateSource = path_1.default.join(__dirname, '../../../docs/ai/.contextuate');
     }
     if (!fs_extra_1.default.existsSync(templateSource)) {
         console.error(chalk_1.default.red(`[ERROR] Could not find template source at ${templateSource}`));
         return;
     }
-    const installDir = 'docs/ai/.context';
+    const installDir = 'docs/ai/.contextuate';
     // Helper to copy files
     const copyFile = async (src, dest) => {
         // Resolve absolute paths to check for equality
@@ -108,8 +108,11 @@ async function initCommand(options) {
     await copyDirContents('tools');
     console.log(chalk_1.default.green('[OK] Copied framework files'));
     console.log('');
-    // 3. Setup project context
+    // 3. Setup project context files
     console.log(chalk_1.default.blue('[INFO] Setting up project context...'));
+    // Copy contextuate.md (main entry point) to docs/ai/
+    await copyFile(path_1.default.join(installDir, 'templates/contextuate.md'), 'docs/ai/contextuate.md');
+    // Copy context.md (user customizable) to docs/ai/
     await copyFile(path_1.default.join(installDir, 'templates/context.md'), 'docs/ai/context.md');
     console.log('');
     // 4. Generate jump files
@@ -178,7 +181,8 @@ async function initCommand(options) {
     const gitignoreEntries = [
         '',
         '# Contextuate - Framework files',
-        'docs/ai/.context/',
+        'docs/ai/.contextuate/',
+        'docs/ai/contextuate.md',
         'docs/ai/tasks/',
         '',
         '# Contextuate - Generated Artifacts (DO NOT EDIT)',

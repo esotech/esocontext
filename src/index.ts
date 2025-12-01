@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import { initCommand } from './commands/init';
+import { removeCommand } from './commands/remove';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -26,5 +27,11 @@ program
     .description('Initialize Contextuate in the current project')
     .option('-f, --force', 'Overwrite existing files')
     .action(initCommand);
+
+program
+    .command('remove')
+    .description('Remove Contextuate generated files and symlinks')
+    .option('-f, --force', 'Skip confirmation prompt')
+    .action(removeCommand);
 
 program.parse();

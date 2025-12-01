@@ -34,7 +34,7 @@ Scripts for framework management. Run by humans or AI.
 
 | Script | Purpose | Usage |
 |--------|---------|-------|
-| `install.sh` | Install Contextuate in a project | `curl -fsSL https://contextuate.dev/install.sh \| bash` |
+| `install.sh` | Install Contextuate in a project | `curl -fsSL https://contextuate.md/install.sh \| bash` |
 | `update.sh` | Update framework to latest version | `./docs/ai/.context/bin/update.sh` |
 
 ---
@@ -127,10 +127,10 @@ Installs Contextuate framework in a project.
 **Usage:**
 ```bash
 # Remote installation
-curl -fsSL https://contextuate.dev/install.sh | bash
+curl -fsSL https://contextuate.md/install.sh | bash
 
 # With options
-curl -fsSL https://contextuate.dev/install.sh | bash -s -- [options]
+curl -fsSL https://contextuate.md/install.sh | bash -s -- [options]
 
 # Local installation
 ./docs/ai/.context/bin/install.sh [options]

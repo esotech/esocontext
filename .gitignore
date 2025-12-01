@@ -28,3 +28,17 @@ vendor/
 
 # Contextuate - AI task tracking (user-specific)
 docs/ai/tasks/
+
+# Contextuate - Framework files
+docs/ai/.context/
+docs/ai/tasks/
+
+# Contextuate - Generated Artifacts (DO NOT EDIT)
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.clinerules/
+.cursor/rules/project.mdc
+.windsurf/rules/project.md
+.antigravity/rules.md
+.github/copilot-instructions.md

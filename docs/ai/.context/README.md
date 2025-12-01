@@ -113,10 +113,10 @@ When AI looks up coding standards for a language:
 
 ```bash
 # Remote installation
-curl -fsSL https://contextuate.dev/install.sh | bash
+curl -fsSL https://contextuate.md/install.sh | bash
 
 # With options
-curl -fsSL https://contextuate.dev/install.sh | bash -s -- --force
+curl -fsSL https://contextuate.md/install.sh | bash -s -- --force
 ```
 
 **Options:**
@@ -147,6 +147,6 @@ Updates framework files while preserving your customizations.
 
 ## Support
 
-- Documentation: https://contextuate.dev
+- Documentation: https://contextuate.md
 - Repository: https://github.com/esotech/contextuate
 - Issues: https://github.com/esotech/contextuate/issues

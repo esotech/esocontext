@@ -7,7 +7,7 @@
 #   ./docs/ai/.context/bin/update.sh
 #
 # Or via curl:
-#   curl -fsSL https://contextuate.dev/update.sh | bash
+#   curl -fsSL https://contextuate.md/update.sh | bash
 #
 
 set -e
@@ -63,7 +63,7 @@ main() {
 	# Check if contextuate is installed
 	if [[ ! -d "$INSTALL_DIR" ]]; then
 		log_error "Contextuate not found. Run the installer first:"
-		echo "  curl -fsSL https://contextuate.dev/install.sh | bash"
+		echo "  curl -fsSL https://contextuate.md/install.sh | bash"
 		exit 1
 	fi
 

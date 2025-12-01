@@ -1,0 +1,41 @@
+{
+  "name": "contextuate",
+  "version": "1.0.0",
+  "description": "**Standardized AI Context for Software Projects**",
+  "main": "dist/index.js",
+  "bin": {
+    "contextuate": "./dist/index.js"
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/esotech/contextuate.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/esotech/contextuate/issues"
+  },
+  "homepage": "https://github.com/esotech/contextuate#readme",
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/inquirer": "^9.0.9",
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.2",
+    "fs-extra": "^11.3.2",
+    "inquirer": "^13.0.1"
+  }
+}

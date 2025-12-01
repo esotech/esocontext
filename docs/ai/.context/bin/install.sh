@@ -4,10 +4,10 @@
 # Standardized AI context framework for any project
 #
 # Usage:
-#   curl -fsSL https://contextuate.dev/install.sh | bash
+#   curl -fsSL https://contextuate.md/install.sh | bash
 #
 # Or with options:
-#   curl -fsSL https://contextuate.dev/install.sh | bash -s -- [options]
+#   curl -fsSL https://contextuate.md/install.sh | bash -s -- [options]
 #
 # Options:
 #   --force     Overwrite existing files (default: merge/skip)
@@ -47,7 +47,7 @@ while [[ $# -gt 0 ]]; do
 		--help)
 			echo "Contextuate Installer v${CONTEXTUATE_VERSION}"
 			echo ""
-			echo "Usage: curl -fsSL https://contextuate.dev/install.sh | bash -s -- [options]"
+			echo "Usage: curl -fsSL https://contextuate.md/install.sh | bash -s -- [options]"
 			echo ""
 			echo "Options:"
 			echo "  --force     Overwrite existing files"
@@ -395,7 +395,7 @@ main() {
 	echo "  2. Create custom agents in ${BLUE}docs/ai/agents/${NC}"
 	echo "  3. Add quickrefs in ${BLUE}docs/ai/quickrefs/${NC}"
 	echo ""
-	echo "Documentation: https://contextuate.dev"
+	echo "Documentation: https://contextuate.md"
 	echo ""
 }
 

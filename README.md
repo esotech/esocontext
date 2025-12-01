@@ -9,7 +9,7 @@ Contextuate provides a structured "brain" for your project that AI coding assist
 Install Contextuate in your project:
 
 ```bash
-curl -fsSL https://contextuate.dev/install.sh | bash
+curl -fsSL https://contextuate.md/install.sh | bash
 ```
 
 This creates a `docs/ai/` directory in your project root containing the framework and templates.
@@ -45,7 +45,7 @@ Once installed, you customize the framework for your project:
 
 ## Documentation
 
-For full documentation, see [contextuate.dev](https://contextuate.dev) or browse the `docs/ai/.context/` directory.
+For full documentation, see [contextuate.md](https://contextuate.md) or browse the `docs/ai/.context/` directory.
 
 ## License
 

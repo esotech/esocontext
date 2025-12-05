@@ -6,10 +6,24 @@ Contextuate provides a structured "brain" for your project that AI coding assist
 
 ## Quick Start
 
-Install Contextuate in your project:
+### Installation
+
+Clone the repository and install globally:
 
 ```bash
-npx contextuate init
+git clone https://github.com/anthropics/contextuate.git
+cd contextuate
+npm install
+npm run build
+npm link
+```
+
+### Initialize Your Project
+
+Navigate to your project directory and run:
+
+```bash
+contextuate init
 ```
 
 The interactive installer will guide you through:

@@ -11,7 +11,7 @@ Contextuate provides a structured "brain" for your project that AI coding assist
 Clone the repository and install globally:
 
 ```bash
-git clone https://github.com/anthropics/contextuate.git
+git clone https://github.com/esotech/contextuate.git
 cd contextuate
 npm install
 npm run build

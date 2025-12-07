@@ -24,6 +24,9 @@ context:
     - "src/"
 env:
   - "OPENAI_API_KEY"
+provider:
+  type: "openai"
+  model: "gpt-4"
 ---
 ```
 

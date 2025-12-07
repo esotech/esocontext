@@ -9,8 +9,13 @@ const fs_extra_1 = __importDefault(require("fs-extra"));
 const path_1 = __importDefault(require("path"));
 const gray_matter_1 = __importDefault(require("gray-matter"));
 const git_1 = require("../utils/git");
+// ... imports
+const driver_1 = require("../runtime/driver");
 async function runCommand(agentName, options) {
     console.log(chalk_1.default.blue(`[INFO] Launching Agent: ${agentName}`));
+    if (options.goal) {
+        console.log(chalk_1.default.bold('Goal: ') + options.goal);
+    }
     // 1. Locate the agent file
     const agentPath = path_1.default.join(process.cwd(), 'docs/ai/agents', `${agentName}.agent.md`);
     if (!fs_extra_1.default.existsSync(agentPath)) {
@@ -35,6 +40,10 @@ async function runCommand(agentName, options) {
         const fileContent = await fs_extra_1.default.readFile(agentPath, 'utf-8');
         const parsed = (0, gray_matter_1.default)(fileContent);
         config = parsed.data;
+        // Add default provider config if missing
+        if (!config.provider) {
+            config.provider = { type: 'mock', model: 'test' };
+        }
         console.log(chalk_1.default.green(`[OK] Loaded agent definition`));
     }
     catch (error) {
@@ -106,7 +115,17 @@ async function runCommand(agentName, options) {
     if (!options.dryRun) {
         // Here we would spawn the actual agent process or loop
         console.log(chalk_1.default.magenta('\n*** AGENT EXECUTION STARTED ***'));
-        console.log('(Agent would perform work here)');
+        try {
+            const driver = new driver_1.LLMDriver({
+                provider: config.provider?.type || 'mock',
+                model: config.provider?.model || 'test',
+                capabilities: config.capabilities || []
+            }, options.goal || 'No explicit goal provided.', runtimeCwd);
+            await driver.run();
+        }
+        catch (e) {
+            console.error(chalk_1.default.red(`[ERROR] Execution failed: ${e.message}`));
+        }
         console.log(chalk_1.default.magenta('*** AGENT EXECUTION FINISHED ***'));
         // If worktree, ask to commit or verify
         if (options.isolation === 'worktree') {

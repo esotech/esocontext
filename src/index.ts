@@ -49,6 +49,7 @@ program
     .argument('<agent>', 'Name of the agent to run (e.g. "documentation-expert")')
     .option('--dry-run', 'Simulate execution without running logic')
     .option('--isolation <mode>', 'Isolation mode (worktree, none)', 'none')
+    .option('--goal <text>', 'Goal or instructions for the agent')
     .action(runCommand);
 
 program.parse();

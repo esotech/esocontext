@@ -14,12 +14,20 @@ interface AgentConfig {
         directories?: string[];
     };
     env?: string[];
+    provider?: { type: string; model: string; };
 }
 
 import { GitManager } from '../utils/git';
 
-export async function runCommand(agentName: string, options: { dryRun?: boolean, isolation?: string }) {
+// ... imports
+import { LLMDriver } from '../runtime/driver';
+
+export async function runCommand(agentName: string, options: { dryRun?: boolean, isolation?: string, goal?: string }) {
     console.log(chalk.blue(`[INFO] Launching Agent: ${agentName}`));
+
+    if (options.goal) {
+        console.log(chalk.bold('Goal: ') + options.goal);
+    }
 
     // 1. Locate the agent file
     const agentPath = path.join(process.cwd(), 'docs/ai/agents', `${agentName}.agent.md`);
@@ -46,6 +54,11 @@ export async function runCommand(agentName: string, options: { dryRun?: boolean,
         const fileContent = await fs.readFile(agentPath, 'utf-8');
         const parsed = matter(fileContent);
         config = parsed.data as AgentConfig;
+
+        // Add default provider config if missing
+        if (!config.provider) {
+            config.provider = { type: 'mock', model: 'test' };
+        }
 
         console.log(chalk.green(`[OK] Loaded agent definition`));
     } catch (error) {
@@ -127,7 +140,22 @@ export async function runCommand(agentName: string, options: { dryRun?: boolean,
     if (!options.dryRun) {
         // Here we would spawn the actual agent process or loop
         console.log(chalk.magenta('\n*** AGENT EXECUTION STARTED ***'));
-        console.log('(Agent would perform work here)');
+
+        try {
+            const driver = new LLMDriver(
+                {
+                    provider: (config as any).provider?.type || 'mock',
+                    model: (config as any).provider?.model || 'test',
+                    capabilities: config.capabilities || []
+                },
+                options.goal || 'No explicit goal provided.',
+                runtimeCwd
+            );
+            await driver.run();
+        } catch (e: any) {
+            console.error(chalk.red(`[ERROR] Execution failed: ${e.message}`));
+        }
+
         console.log(chalk.magenta('*** AGENT EXECUTION FINISHED ***'));
 
         // If worktree, ask to commit or verify

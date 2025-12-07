@@ -1,5 +1,10 @@
 # Contextuate Framework
 
+<p align="center">
+  <img src="assets/logo.png" alt="Contextuate Logo" width="200" />
+</p>
+
+
 **Standardized AI Context for Software Projects**
 
 Contextuate provides a structured "brain" for your project that AI coding assistants (like Claude, Copilot, Cursor) can understand. It standardizes how AI agents receive context, follow coding standards, and execute tasks.

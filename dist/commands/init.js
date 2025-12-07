@@ -23,6 +23,7 @@ async function initCommand(options) {
     console.log(chalk_1.default.blue('╔════════════════════════════════════════╗'));
     console.log(chalk_1.default.blue('║     Contextuate Installer              ║'));
     console.log(chalk_1.default.blue('║     AI Context Framework               ║'));
+    console.log(chalk_1.default.blue('║     Powered by Esotech                 ║'));
     console.log(chalk_1.default.blue('╚════════════════════════════════════════╝'));
     console.log('');
     // Check for project markers
@@ -318,6 +319,10 @@ async function initCommand(options) {
     console.log(`  2. Create custom agents in ${chalk_1.default.blue('docs/ai/agents/')}`);
     console.log(`  3. Add quickrefs in ${chalk_1.default.blue('docs/ai/quickrefs/')}`);
     console.log('');
+    console.log('');
     console.log('Documentation: https://contextuate.md');
+    console.log('');
+    console.log(chalk_1.default.gray('Powered by Esotech.'));
+    console.log(chalk_1.default.gray('Created by Alexander Conroy (@geilt)'));
     console.log('');
 }

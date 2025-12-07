@@ -19,6 +19,7 @@ export async function initCommand(options: { force?: boolean }) {
     console.log(chalk.blue('╔════════════════════════════════════════╗'));
     console.log(chalk.blue('║     Contextuate Installer              ║'));
     console.log(chalk.blue('║     AI Context Framework               ║'));
+    console.log(chalk.blue('║     Powered by Esotech                 ║'));
     console.log(chalk.blue('╚════════════════════════════════════════╝'));
     console.log('');
 

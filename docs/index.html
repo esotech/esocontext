@@ -106,12 +106,31 @@ npm link</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></
             <p>Execute an agent definition with the <code>run</code> command:</p>
             <pre><code>contextuate run &lt;agent-name&gt; [options]</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>
 
+            <p class="note"
+                style="background: rgba(20, 119, 194, 0.1); border-left: 3px solid #1477c2; padding: 0.5rem 1rem; margin: 1rem 0; font-size: 0.9em;">
+                <strong>Power User Tip:</strong> The <code>run</code> command is designed to be used by both humans and
+                AI agents.
+                Agents can use it to <strong>spawn sub-agents</strong> to handle complex sub-tasks in parallel (e.g.,
+                "Run a dedicated bug-fixer agent on this file").
+            </p>
+
             <p><strong>Example:</strong></p>
             <pre><code>contextuate run documentation-expert --task api-refactor --goal "Update API docs" --isolation worktree</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>
 
             <h3>Context Management</h3>
             <p>Generate a token-optimized map of your codebase:</p>
             <pre><code>contextuate index</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>
+
+            <p>Interactively add files to your main context:</p>
+            <pre><code>contextuate add-context</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>
+
+            <h3>Agent Management</h3>
+            <p>Scaffold a new agent definition:</p>
+            <pre><code>contextuate create-agent &lt;name&gt;</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>
+
+            <h3>Cleanup</h3>
+            <p>Safely remove framework files (only unmodified ones):</p>
+            <pre><code>contextuate remove</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>
         </section>
 
     </main>

@@ -78,64 +78,18 @@ Once installed, you customize the framework for your project:
 
 ## CLI Usage
 
-### Running Agents
+### Command Reference
 
-Execute an agent definition with the `run` command:
+| Command        | Description                         | Documentation                |
+| :------------- | :---------------------------------- | :--------------------------- |
+| `init`         | Initialize Contextuate in a project | [Docs](docs/INIT.md)         |
+| `run`          | Execute an agent                    | [Docs](docs/RUN.md)          |
+| `create-agent` | Create a new agent definition       | [Docs](docs/CREATE_AGENT.md) |
+| `index`        | Generate a project file tree        | [Docs](docs/INDEX.md)        |
+| `add-context`  | Interactively add files to context  | [Docs](docs/ADD_CONTEXT.md)  |
+| `remove`       | Clean up framework files            | [Docs](docs/REMOVE.md)       |
 
-```bash
-contextuate run <agent-name> [options]
-```
-
-Options:
-- `--goal <text>`: Provide a specific goal or instruction for this run.
-- `--task <name>`: Automatically load context from a task in `docs/ai/tasks/<name>` (loads scope and latest log).
-- `--isolation worktree`: Run the agent in a sandboxed git worktree (safe for destructive changes).
-- `--dry-run`: Simulate the execution plan without running the agent loop.
-
-Example:
-```bash
-contextuate run documentation-expert --task api-refactor --goal "Update API docs" --isolation worktree
-```
-
-### Creating Agents
-
-Scaffold a new agent definition:
-
-```bash
-contextuate create-agent <name> --description "Description of what it does"
-```
-
-### Context Management
-
-#### Indexing the Project
-Generate a token-optimized map of your codebase:
-
-```bash
-contextuate index
-```
-This creating `docs/ai/project-structure.md`, which is automatically loaded by the `run` command to give agents a high-level view of the project without reading every file.
-
-#### Adding Context
-Interactively select files to add to your main context:
-
-```bash
-contextuate add-context
-```
-
-### Context Analysis
-When running an agent with `--dry-run`, Contextuate now displays a "Context Size Analysis" to help you manage token usage:
-
-```bash
-contextuate run documentation-expert --dry-run
-```
-Output:
-```
-Loading Context:
-- docs/ai/project-structure.md: FOUND (450 tokens)
-- docs/ai/context.md: FOUND (1200 tokens)
-
-Total Context Size: ~1650 tokens
-```
+For detailed usage, options, and examples, please click the documentation links above.
 
 ## Documentation
 

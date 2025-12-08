@@ -1,7 +1,9 @@
 # Contextuate Framework
 
 <p align="center">
-  <img src="assets/logo-black.png" alt="Contextuate Logo" width="200" />
+  <a href="https://contextuate.md">
+    <img src="assets/logo-black.png" alt="Contextuate Logo" width="200" />
+  </a>
 </p>
 
 

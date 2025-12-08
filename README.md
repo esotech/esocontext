@@ -11,7 +11,13 @@ Contextuate provides a structured "brain" for your project that AI coding assist
 
 ## Quick Start
 
-### Installation
+### One-Line Install (Recommended)
+
+```bash
+curl -fsSL https://contextuate.md/install.sh | sh
+```
+
+### Manual Installation
 
 Clone the repository and install globally:
 

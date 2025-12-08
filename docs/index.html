@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contextuate - Standardized AI Context for Software Projects</title>
+    <meta name="description"
+        content="Contextuate provides a structured 'brain' for your project that AI coding assistants can understand.">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="assets/logo.png">
+</head>
+
+<body>
+
+    <header>
+        <div class="container">
+            <div class="logo-container">
+                <img src="assets/logo.png" alt="Contextuate Logo" class="logo">
+            </div>
+            <h1>Contextuate</h1>
+            <p class="tagline">Standardized AI Context for Software Projects</p>
+            <div style="margin-top: 2rem;">
+                <a href="#quick-start" class="btn">Get Started</a>
+                <a href="install.sh" class="btn" style="background: rgba(255,255,255,0.1); margin-left: 1rem;">Download
+                    Installer</a>
+                <a href="https://github.com/esotech/contextuate" class="btn"
+                    style="background: rgba(255,255,255,0.1); margin-left: 1rem;">View on GitHub</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <section id="about">
+            <h2>What is Contextuate?</h2>
+            <p>Contextuate provides a structured "brain" for your project that AI coding assistants (like Claude,
+                Copilot, Cursor) can understand. It standardizes how AI agents receive context, follow coding standards,
+                and execute tasks.</p>
+
+            <div class="grid">
+                <div class="card">
+                    <h3>Discovery</h3>
+                    <p>The AI reads <code>docs/ai/context.md</code> first. This file maps the project and links to all
+                        other resources.</p>
+                </div>
+                <div class="card">
+                    <h3>Specialization</h3>
+                    <p>If acting as a specific agent, it reads <code>docs/ai/agents/</code> to load specific
+                        capabilities and rules.</p>
+                </div>
+                <div class="card">
+                    <h3>Execution</h3>
+                    <p>The AI follows the linked standards in <code>docs/ai/standards/</code> and uses
+                        <code>docs/ai/quickrefs/</code> for technical lookups.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="quick-start">
+            <h2>Quick Start</h2>
+
+            <h3>Installation</h3>
+            <p>Clone the repository and install globally:</p>
+            <pre><code>git clone https://github.com/esotech/contextuate.git
+cd contextuate
+npm install
+npm run build
+npm link</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>
+
+            <h3>Initialize Your Project</h3>
+            <p>Navigate to your project directory and run:</p>
+            <pre><code>contextuate init</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>
+            <p>The interactive installer will guide you through selecting AI platforms, creating directory structures,
+                and generating configuration files.</p>
+        </section>
+
+        <section id="cli-usage">
+            <h2>CLI Usage</h2>
+
+            <h3>Running Agents</h3>
+            <p>Execute an agent definition with the <code>run</code> command:</p>
+            <pre><code>contextuate run &lt;agent-name&gt; [options]</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>
+
+            <p><strong>Example:</strong></p>
+            <pre><code>contextuate run documentation-expert --task api-refactor --goal "Update API docs" --isolation worktree</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>
+
+            <h3>Context Management</h3>
+            <p>Generate a token-optimized map of your codebase:</p>
+            <pre><code>contextuate index</code><button class="copy-btn" onclick="copyCode(this)">Copy</button></pre>
+        </section>
+
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Esotech. Built by <a href="https://github.com/geilt">Alexander Conroy</a>.</p>
+            <p>Released under the <a href="https://github.com/esotech/contextuate/blob/main/LICENSE">MIT License</a>.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        function copyCode(button) {
+            const pre = button.parentElement;
+            const code = pre.querySelector('code');
+            const range = document.createRange();
+            range.selectNode(code);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+
+            try {
+                navigator.clipboard.writeText(code.innerText).then(() => {
+                    const originalText = button.innerText;
+                    button.innerText = 'Copied!';
+                    setTimeout(() => {
+                        button.innerText = originalText;
+                    }, 2000);
+                });
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+            window.getSelection().removeAllRanges();
+        }
+    </script>
+</body>
+
+</html>

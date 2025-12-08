@@ -17,7 +17,7 @@ const PLATFORMS = [
     { id: 'copilot', name: 'GitHub Copilot', src: 'templates/platforms/copilot.md', dest: '.github/copilot-instructions.md', ensureDir: '.github' },
     { id: 'cursor', name: 'Cursor IDE', src: 'templates/platforms/cursor.mdc', dest: '.cursor/rules/project.mdc', ensureDir: '.cursor/rules' },
     { id: 'windsurf', name: 'Windsurf IDE', src: 'templates/platforms/windsurf.md', dest: '.windsurf/rules/project.md', ensureDir: '.windsurf/rules' },
-    { id: 'antigravity', name: 'Antigravity', src: 'templates/platforms/antigravity.md', dest: '.antigravity/rules.md', ensureDir: '.antigravity' },
+    { id: 'antigravity', name: 'Antigravity', src: 'templates/platforms/GEMINI.md', dest: '.gemini/rules.md', ensureDir: '.gemini' },
 ];
 async function initCommand(options) {
     console.log(chalk_1.default.blue('╔════════════════════════════════════════╗'));

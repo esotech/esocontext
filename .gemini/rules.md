@@ -1,4 +1,4 @@
-# Claude Code Context
+# Antigravity Rules
 
 <!--
   CONTEXTUATE MANAGED FILE - DO NOT MODIFY

@@ -34,9 +34,9 @@ docs/ai/.context/
 docs/ai/tasks/
 
 # Contextuate - Generated Artifacts (DO NOT EDIT)
-CLAUDE.md
-AGENTS.md
-GEMINI.md
+/CLAUDE.md
+/AGENTS.md
+/GEMINI.md
 .claude/
 .clinerules/
 .cursor/rules/project.mdc
@@ -49,3 +49,9 @@ GEMINI.md
 !docs/ai/.contextuate/templates/platforms/.clinerules/*.md
 !docs/ai/.contextuate/templates/platforms/.cursor/rules/*.mdc
 !docs/ai/.contextuate/templates/platforms/.windsurf/rules/*.md
+!/.cursor/rules/project.mdc
+!/.windsurf/rules/project.md
+!/.github/copilot-instructions.md
+!/CLAUDE.md
+!/GEMINI.md
+!/AGENTS.md

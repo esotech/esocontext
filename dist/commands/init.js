@@ -143,13 +143,21 @@ async function initCommand(options) {
     console.log('');
     // 2. Copy templates
     console.log(chalk_1.default.blue('[INFO] Installing framework files...'));
-    // Define source directory (where the package is installed)
-    // In development, this is likely ../../docs/ai/.contextuate relative to this file
-    // In production (dist), it might be different. We need to handle both.
-    let templateSource = path_1.default.join(__dirname, '../../docs/ai/.contextuate');
+    // In development (ts-node), this is ../../src/templates relative to src/commands/init.ts
+    // In production (dist), this is ../templates relative to dist/commands/init.js
+    let templateSource = path_1.default.join(__dirname, '../templates');
+    // If running from src/commands (ts-node), we need to go up one more level if structure is src/commands/init.ts
+    if (path_1.default.basename(path_1.default.join(__dirname, '..')) === 'src') {
+        templateSource = path_1.default.join(__dirname, '../../src/templates');
+    }
+    else if (path_1.default.basename(__dirname) === 'commands') {
+        // dist/commands/init.js -> dist/templates
+        templateSource = path_1.default.join(__dirname, '../templates');
+    }
+    // Fallback/Verify
     if (!fs_extra_1.default.existsSync(templateSource)) {
-        // Try resolving from package root if running from dist
-        templateSource = path_1.default.join(__dirname, '../../../docs/ai/.contextuate');
+        // Try one level up just in case
+        templateSource = path_1.default.join(__dirname, '../../templates');
     }
     if (!fs_extra_1.default.existsSync(templateSource)) {
         console.error(chalk_1.default.red(`[ERROR] Could not find template source at ${templateSource}`));

@@ -13,7 +13,13 @@ Contextuate provides a structured "brain" for your project that AI coding assist
 
 ## Quick Start
 
-### Install via npm (Recommended)
+### One-Line Install (Recommended)
+
+```bash
+curl -fsSL https://contextuate.md/install.sh | sh
+```
+
+### Install via npm
 
 ```bash
 npm install -g @esotech/contextuate
@@ -23,12 +29,6 @@ Or use directly with npx:
 
 ```bash
 npx @esotech/contextuate init
-```
-
-### One-Line Install (Alternative)
-
-```bash
-curl -fsSL https://contextuate.md/install.sh | sh
 ```
 
 ### Install from Source

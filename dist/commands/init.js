@@ -234,6 +234,7 @@ async function initCommand(platformArgs, options) {
         const dirs = [
             'docs/ai/.contextuate/standards',
             'docs/ai/.contextuate/tools',
+            'docs/ai/.contextuate/agents',
             'docs/ai/agents',
             'docs/ai/standards',
             'docs/ai/quickrefs',
@@ -249,7 +250,6 @@ async function initCommand(platformArgs, options) {
         // Cleanup legacy template directories if they exist
         const legacyDirs = [
             'docs/ai/.contextuate/templates',
-            'docs/ai/.contextuate/agents',
         ];
         for (const dir of legacyDirs) {
             if (fs_extra_1.default.existsSync(dir)) {
@@ -314,9 +314,10 @@ async function initCommand(platformArgs, options) {
                 }
             }
         };
-        // Copy core standards and tools to .contextuate (engine files)
+        // Copy core standards, tools, and framework agents to .contextuate (engine files)
         await copyDirContents('standards', path_1.default.join(installDir, 'standards'));
         await copyDirContents('tools', path_1.default.join(installDir, 'tools'));
+        await copyDirContents('framework-agents', path_1.default.join(installDir, 'agents'));
         console.log(chalk_1.default.green('[OK] Copied framework files'));
         console.log('');
         // 3. Install selected agents to docs/ai/agents/

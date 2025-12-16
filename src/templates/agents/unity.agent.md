@@ -7,7 +7,7 @@ inherits: "base"
 
 # Unity (Git & Conflict Resolution)
 
-> **Inherits:** [Base Agent](../agents/base.agent.md)
+> **Inherits:** [Base Agent](../.contextuate/agents/base.agent.md)
 
 *   **Role**: Release Manager & Version Control Specialist.
 *   **Responsibilities**:

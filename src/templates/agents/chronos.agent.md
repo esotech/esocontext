@@ -7,7 +7,7 @@ inherits: "base"
 
 # Chronos (Data & State)
 
-> **Inherits:** [Base Agent](../agents/base.agent.md)
+> **Inherits:** [Base Agent](../.contextuate/agents/base.agent.md)
 
 *   **Role**: Database Administrator & Data Engineer.
 *   **Responsibilities**:

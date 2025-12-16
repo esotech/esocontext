@@ -7,7 +7,7 @@ inherits: "base"
 
 # Canvas (Frontend & Experience)
 
-> **Inherits:** [Base Agent](../agents/base.agent.md)
+> **Inherits:** [Base Agent](../.contextuate/agents/base.agent.md)
 
 *   **Role**: Senior Frontend Engineer.
 *   **Responsibilities**:

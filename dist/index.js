@@ -8,6 +8,7 @@ const run_1 = require("./commands/run");
 const create_1 = require("./commands/create");
 const index_1 = require("./commands/index");
 const context_1 = require("./commands/context");
+const install_1 = require("./commands/install");
 const fs_1 = require("fs");
 const path_1 = require("path");
 const program = new commander_1.Command();
@@ -60,4 +61,36 @@ program
     .option('--goal <text>', 'Goal or instructions for the agent')
     .option('--task <name>', 'Load a task context (scope and latest log)')
     .action(run_1.runCommand);
+// Install command with subcommands and flag-based usage
+const install = program
+    .command('install')
+    .description('Install templates from the Contextuate repository')
+    .option('-a, --agents <names...>', 'Install specific agents (use "all" for all)')
+    .option('-s, --standards <names...>', 'Install language standards (use "all" for all)')
+    .option('-t, --tools <names...>', 'Install tools (use "all" for all)')
+    .option('--all', 'Install all available templates')
+    .option('-l, --list', 'List available templates')
+    .option('-f, --force', 'Overwrite existing files')
+    .action(install_1.installCommand);
+// Subcommand: install agents
+install
+    .command('agents [names...]')
+    .description('Install agent templates')
+    .option('--all', 'Install all agents')
+    .option('-f, --force', 'Overwrite existing files')
+    .action(install_1.installAgentsCommand);
+// Subcommand: install standards
+install
+    .command('standards [names...]')
+    .description('Install language standard templates')
+    .option('--all', 'Install all standards')
+    .option('-f, --force', 'Overwrite existing files')
+    .action(install_1.installStandardsCommand);
+// Subcommand: install tools
+install
+    .command('tools [names...]')
+    .description('Install tool templates')
+    .option('--all', 'Install all tools')
+    .option('-f, --force', 'Overwrite existing files')
+    .action(install_1.installToolsCommand);
 program.parse();

@@ -7,7 +7,7 @@ inherits: "base"
 
 # Vox (Media & Communications)
 
-> **Inherits:** [Base Agent](../agents/base.agent.md)
+> **Inherits:** [Base Agent](../.contextuate/agents/base.agent.md)
 
 *   **Role**: Media Streaming & Communications Specialist.
 *   **Responsibilities**:

@@ -246,6 +246,7 @@ export async function initCommand(platformArgs: string[] | { force?: boolean, ag
         const dirs = [
             'docs/ai/.contextuate/standards',
             'docs/ai/.contextuate/tools',
+            'docs/ai/.contextuate/agents',
             'docs/ai/agents',
             'docs/ai/standards',
             'docs/ai/quickrefs',
@@ -263,7 +264,6 @@ export async function initCommand(platformArgs: string[] | { force?: boolean, ag
         // Cleanup legacy template directories if they exist
         const legacyDirs = [
             'docs/ai/.contextuate/templates',
-            'docs/ai/.contextuate/agents',
         ];
 
         for (const dir of legacyDirs) {
@@ -341,9 +341,10 @@ export async function initCommand(platformArgs: string[] | { force?: boolean, ag
             }
         };
 
-        // Copy core standards and tools to .contextuate (engine files)
+        // Copy core standards, tools, and framework agents to .contextuate (engine files)
         await copyDirContents('standards', path.join(installDir, 'standards'));
         await copyDirContents('tools', path.join(installDir, 'tools'));
+        await copyDirContents('framework-agents', path.join(installDir, 'agents'));
 
         console.log(chalk.green('[OK] Copied framework files'));
         console.log('');

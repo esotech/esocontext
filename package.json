@@ -4,7 +4,7 @@
   "description": "**Standardized AI Context for Software Projects**",
   "main": "dist/index.js",
   "bin": {
-    "contextuate": "./dist/index.js"
+    "contextuate": "dist/index.js"
   },
   "directories": {
     "doc": "docs"

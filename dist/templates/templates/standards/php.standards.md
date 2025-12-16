@@ -52,7 +52,7 @@
 ```php
 <?php
 // 1. Strict types declaration (if used)
-declare(strict_types=1);
+declare( strict_types=1 );
 
 // 2. Namespace
 namespace App\Services;
@@ -62,8 +62,7 @@ use App\Models\User;
 use Exception;
 
 // 4. Class definition
-class UserService
-{
+class UserService {
     // 5. Constants
     // 6. Properties
     // 7. Constructor
@@ -97,7 +96,7 @@ public function getData(): array
 ```php
 // {Required|Optional}
 private string $name;
-private ?User $user = null;
+private User|null $user = null;
 ```
 
 ---

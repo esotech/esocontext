@@ -4,13 +4,79 @@ The `contextuate init` command is the entry point for the Contextuate framework.
 
 ## Usage
 
+### Interactive Mode (Default)
+
 ```bash
 contextuate init [options]
+```
+
+The interactive installer will guide you through platform and agent selection.
+
+### Non-Interactive Mode (CLI Arguments)
+
+```bash
+contextuate init [platforms...] [options]
+```
+
+#### Examples
+
+**Install specific platform(s):**
+```bash
+# Single platform
+contextuate init claude
+
+# Multiple platforms
+contextuate init claude gemini cursor
+
+# All platforms
+contextuate init all
+```
+
+**Install platform(s) with agents:**
+```bash
+# Install Claude with specific agents
+contextuate init claude --agents base archon
+
+# Install Claude with all agents
+contextuate init claude --agents all
+
+# Multiple platforms with specific agents
+contextuate init claude gemini --agents base archon nexus
+```
+
+**Force overwrite existing files:**
+```bash
+contextuate init claude --force
+contextuate init claude --agents all --force
 ```
 
 ### Options
 
 *   `-f, --force`: Overwrite existing files without asking. Use with caution.
+*   `-a, --agents <agents...>`: Install specific agents. Use "all" to install all available agents.
+
+### Platform Fuzzy Matching
+
+Platform arguments support fuzzy matching for convenience:
+
+- `claude` → Claude Code
+- `gem` or `gemini` → Google Gemini
+- `curs` or `cursor` → Cursor IDE
+- `wind` or `windsurf` → Windsurf IDE
+- `github` or `copilot` → GitHub Copilot
+- `cline` → Cline
+- `anti` or `antigravity` → Antigravity
+- `agents` → Agents.ai
+
+**Supported Platforms:**
+- agents (Agents.ai)
+- antigravity (Antigravity)
+- claude (Claude Code)
+- cline (Cline)
+- cursor (Cursor IDE)
+- gemini (Google Gemini)
+- copilot (GitHub Copilot)
+- windsurf (Windsurf IDE)
 
 ## What It Does
 

@@ -27,9 +27,10 @@ program
     .version(version);
 
 program
-    .command('init')
+    .command('init [platforms...]')
     .description('Initialize Contextuate in the current project')
     .option('-f, --force', 'Overwrite existing files')
+    .option('-a, --agents <agents...>', 'Install specific agents (e.g., "base archon" or "all")')
     .action(initCommand);
 
 program

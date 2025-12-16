@@ -25,9 +25,10 @@ program
     .description('Standardized AI context framework for any project. Powered by Esotech.')
     .version(version);
 program
-    .command('init')
+    .command('init [platforms...]')
     .description('Initialize Contextuate in the current project')
     .option('-f, --force', 'Overwrite existing files')
+    .option('-a, --agents <agents...>', 'Install specific agents (e.g., "base archon" or "all")')
     .action(init_1.initCommand);
 program
     .command('remove')

@@ -19,7 +19,41 @@ const PLATFORMS = [
     { id: 'copilot', name: 'GitHub Copilot', src: 'templates/platforms/copilot.md', dest: '.github/copilot-instructions.md', ensureDir: '.github' },
     { id: 'windsurf', name: 'Windsurf IDE', src: 'templates/platforms/windsurf.md', dest: '.windsurf/rules/project.md', ensureDir: '.windsurf/rules' },
 ];
-async function initCommand(options) {
+// Fuzzy match platform names
+function fuzzyMatchPlatform(input) {
+    const normalized = input.toLowerCase().trim();
+    // Direct ID match
+    const directMatch = PLATFORMS.find(p => p.id === normalized);
+    if (directMatch) {
+        return directMatch.id;
+    }
+    // Partial match - starts with or includes
+    const partialMatch = PLATFORMS.find(p => p.id.startsWith(normalized) ||
+        p.name.toLowerCase().includes(normalized));
+    if (partialMatch) {
+        return partialMatch.id;
+    }
+    // Special case for common variations
+    if (normalized === 'github' || normalized === 'copilot') {
+        return 'copilot';
+    }
+    return null;
+}
+async function initCommand(platformArgs, options) {
+    // Handle both old signature (no args) and new signature (with variadic args)
+    // When called with no args: first param is options object
+    // When called with args: first param is array, second param is options
+    let platforms = [];
+    let opts = {};
+    if (Array.isArray(platformArgs)) {
+        platforms = platformArgs;
+        opts = options || {};
+    }
+    else {
+        // Old signature - first param is actually options
+        opts = platformArgs || {};
+        platforms = [];
+    }
     console.log(chalk_1.default.blue('╔════════════════════════════════════════╗'));
     console.log(chalk_1.default.blue('║     Contextuate Installer              ║'));
     console.log(chalk_1.default.blue('║     AI Context Framework               ║'));
@@ -27,10 +61,12 @@ async function initCommand(options) {
     console.log(chalk_1.default.blue('╚════════════════════════════════════════╝'));
     console.log('');
     try {
+        // Determine if running in non-interactive mode
+        const nonInteractive = platforms.length > 0;
         // Check for project markers
         const projectMarkers = ['.git', 'package.json', 'composer.json', 'Cargo.toml', 'go.mod'];
         const hasMarker = projectMarkers.some(marker => fs_extra_1.default.existsSync(marker));
-        if (!hasMarker) {
+        if (!hasMarker && !nonInteractive) {
             console.log(chalk_1.default.yellow('[WARN] No project markers found (.git, package.json, etc.)'));
             const { continueAnyway } = await inquirer_1.default.prompt([
                 {
@@ -45,36 +81,150 @@ async function initCommand(options) {
                 return;
             }
         }
-        // Ask about platform selection
-        // Ask about platform selection
-        const { platforms } = await inquirer_1.default.prompt([
-            {
-                type: 'checkbox',
-                name: 'platforms',
-                message: 'Select the platforms to install:',
-                choices: [
-                    { name: 'Select All', value: 'all' },
-                    new inquirer_1.default.Separator(),
-                    ...PLATFORMS.map(p => ({
-                        name: p.name,
-                        value: p.id,
-                        checked: false,
-                    }))
-                ],
-                validate: (answer) => {
-                    if (answer.length < 1) {
-                        return 'You must select at least one platform.';
-                    }
-                    return true;
-                },
-            },
-        ]);
+        else if (!hasMarker && nonInteractive) {
+            console.log(chalk_1.default.yellow('[WARN] No project markers found (.git, package.json, etc.) - continuing anyway in non-interactive mode'));
+        }
         let selectedPlatforms = [];
-        if (platforms.includes('all')) {
-            selectedPlatforms = PLATFORMS;
+        // Non-interactive mode - process CLI arguments
+        if (nonInteractive) {
+            // Check for "all" argument
+            if (platforms.some(arg => arg.toLowerCase() === 'all')) {
+                selectedPlatforms = PLATFORMS;
+                console.log(chalk_1.default.blue('[INFO] Installing all platforms'));
+            }
+            else {
+                // Fuzzy match each platform argument
+                for (const arg of platforms) {
+                    const matchedId = fuzzyMatchPlatform(arg);
+                    if (matchedId) {
+                        const platform = PLATFORMS.find(p => p.id === matchedId);
+                        if (platform && !selectedPlatforms.includes(platform)) {
+                            selectedPlatforms.push(platform);
+                            console.log(chalk_1.default.green(`[OK] Matched "${arg}" to ${platform.name}`));
+                        }
+                    }
+                    else {
+                        console.log(chalk_1.default.yellow(`[WARN] Could not match platform "${arg}" - skipping`));
+                    }
+                }
+                if (selectedPlatforms.length === 0) {
+                    console.log(chalk_1.default.red('[ERROR] No valid platforms matched. Available platforms:'));
+                    PLATFORMS.forEach(p => console.log(`  - ${p.id} (${p.name})`));
+                    return;
+                }
+            }
         }
         else {
-            selectedPlatforms = PLATFORMS.filter(p => platforms.includes(p.id));
+            // Interactive mode - ask about platform selection
+            const { platforms } = await inquirer_1.default.prompt([
+                {
+                    type: 'checkbox',
+                    name: 'platforms',
+                    message: 'Select the platforms to install:',
+                    choices: [
+                        { name: 'Select All', value: 'all' },
+                        new inquirer_1.default.Separator(),
+                        ...PLATFORMS.map(p => ({
+                            name: p.name,
+                            value: p.id,
+                            checked: false,
+                        }))
+                    ],
+                    validate: (answer) => {
+                        if (answer.length < 1) {
+                            return 'You must select at least one platform.';
+                        }
+                        return true;
+                    },
+                },
+            ]);
+            if (platforms.includes('all')) {
+                selectedPlatforms = PLATFORMS;
+            }
+            else {
+                selectedPlatforms = PLATFORMS.filter(p => platforms.includes(p.id));
+            }
+        }
+        // Handle agent installation
+        let selectedAgents = [];
+        // Dynamically discover available agents from template source
+        let agentTemplateDir = path_1.default.join(__dirname, '../templates/agents');
+        // Handle ts-node vs compiled paths
+        if (path_1.default.basename(path_1.default.join(__dirname, '..')) === 'src') {
+            agentTemplateDir = path_1.default.join(__dirname, '../../src/templates/agents');
+        }
+        else if (path_1.default.basename(__dirname) === 'commands') {
+            agentTemplateDir = path_1.default.join(__dirname, '../templates/agents');
+        }
+        if (!fs_extra_1.default.existsSync(agentTemplateDir)) {
+            agentTemplateDir = path_1.default.join(__dirname, '../../templates/agents');
+        }
+        let availableAgents = [];
+        if (fs_extra_1.default.existsSync(agentTemplateDir)) {
+            const agentFiles = await fs_extra_1.default.readdir(agentTemplateDir);
+            availableAgents = agentFiles
+                .filter(f => f.endsWith('.agent.md'))
+                .map(f => f.replace('.agent.md', ''));
+        }
+        if (opts.agents && opts.agents.length > 0) {
+            // Non-interactive agent selection via --agents flag
+            if (opts.agents.includes('all')) {
+                selectedAgents = availableAgents;
+                console.log(chalk_1.default.blue('[INFO] Installing all agents'));
+            }
+            else {
+                // Match specific agents
+                for (const agentArg of opts.agents) {
+                    const normalized = agentArg.toLowerCase().trim();
+                    const matched = availableAgents.find(a => a.toLowerCase() === normalized);
+                    if (matched) {
+                        selectedAgents.push(matched);
+                        console.log(chalk_1.default.green(`[OK] Matched agent "${agentArg}" to ${matched}`));
+                    }
+                    else {
+                        console.log(chalk_1.default.yellow(`[WARN] Could not match agent "${agentArg}" - skipping`));
+                    }
+                }
+                if (selectedAgents.length === 0 && opts.agents.length > 0 && !opts.agents.includes('all')) {
+                    console.log(chalk_1.default.yellow('[WARN] No valid agents matched. Available agents:'));
+                    availableAgents.forEach(a => console.log(`  - ${a}`));
+                }
+            }
+        }
+        else if (!nonInteractive) {
+            // Interactive mode - ask about agent installation
+            const { installAgents } = await inquirer_1.default.prompt([
+                {
+                    type: 'confirm',
+                    name: 'installAgents',
+                    message: 'Would you like to install pre-built AI agents?',
+                    default: true,
+                },
+            ]);
+            if (installAgents && availableAgents.length > 0) {
+                const { agents } = await inquirer_1.default.prompt([
+                    {
+                        type: 'checkbox',
+                        name: 'agents',
+                        message: 'Select agents to install:',
+                        choices: [
+                            { name: 'Select All', value: 'all' },
+                            new inquirer_1.default.Separator(),
+                            ...availableAgents.map(agent => ({
+                                name: agent.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+                                value: agent,
+                                checked: false,
+                            }))
+                        ],
+                    },
+                ]);
+                if (agents.includes('all')) {
+                    selectedAgents = availableAgents;
+                }
+                else {
+                    selectedAgents = agents;
+                }
+            }
         }
         console.log('');
         console.log(chalk_1.default.blue('[INFO] Installing Contextuate framework...'));
@@ -82,9 +232,6 @@ async function initCommand(options) {
         // 1. Create directory structure
         console.log(chalk_1.default.blue('[INFO] Creating directory structure...'));
         const dirs = [
-            'docs/ai/.contextuate/templates/platforms',
-            'docs/ai/.contextuate/templates/standards',
-            'docs/ai/.contextuate/agents',
             'docs/ai/.contextuate/standards',
             'docs/ai/.contextuate/tools',
             'docs/ai/agents',
@@ -92,10 +239,23 @@ async function initCommand(options) {
             'docs/ai/quickrefs',
             'docs/ai/tasks',
             'docs/ai/commands',
+            'docs/ai/hooks',
+            'docs/ai/skills',
         ];
         for (const dir of dirs) {
             await fs_extra_1.default.ensureDir(dir);
             console.log(chalk_1.default.green(`[OK] Created directory: ${dir}`));
+        }
+        // Cleanup legacy template directories if they exist
+        const legacyDirs = [
+            'docs/ai/.contextuate/templates',
+            'docs/ai/.contextuate/agents',
+        ];
+        for (const dir of legacyDirs) {
+            if (fs_extra_1.default.existsSync(dir)) {
+                await fs_extra_1.default.remove(dir);
+                console.log(chalk_1.default.yellow(`[CLEANUP] Removed legacy directory: ${dir}`));
+            }
         }
         console.log('');
         // 2. Copy templates
@@ -133,53 +293,62 @@ async function initCommand(options) {
                 console.log(chalk_1.default.red(`[ERROR] Source file missing: ${src}`));
                 return;
             }
-            if (fs_extra_1.default.existsSync(dest) && !options.force) {
+            if (fs_extra_1.default.existsSync(dest) && !opts.force) {
                 console.log(chalk_1.default.yellow(`[WARN] Skipped (exists): ${dest}`));
                 return;
             }
             await fs_extra_1.default.copy(src, dest);
             console.log(chalk_1.default.green(`[OK] Created: ${dest}`));
         };
-        // Copy version.json and README.md
+        // Copy core engine files only to .contextuate
         await copyFile(path_1.default.join(templateSource, 'version.json'), path_1.default.join(installDir, 'version.json'));
         await copyFile(path_1.default.join(templateSource, 'README.md'), path_1.default.join(installDir, 'README.md'));
-        // Copy directories
-        const copyDirContents = async (subDir) => {
-            const srcDir = path_1.default.join(templateSource, subDir);
-            const destDir = path_1.default.join(installDir, subDir);
+        // Copy directories - only core framework files
+        const copyDirContents = async (srcSubDir, destDir) => {
+            const srcDir = path_1.default.join(templateSource, srcSubDir);
             if (fs_extra_1.default.existsSync(srcDir)) {
+                await fs_extra_1.default.ensureDir(destDir);
                 const files = await fs_extra_1.default.readdir(srcDir);
                 for (const file of files) {
                     await copyFile(path_1.default.join(srcDir, file), path_1.default.join(destDir, file));
                 }
             }
         };
-        await copyDirContents('templates/platforms');
-        await copyDirContents('templates/standards');
-        await copyFile(path_1.default.join(templateSource, 'templates/contextuate.md'), path_1.default.join(installDir, 'templates/contextuate.md'));
-        await copyFile(path_1.default.join(templateSource, 'templates/context.md'), path_1.default.join(installDir, 'templates/context.md'));
-        await copyDirContents('agents');
-        await copyDirContents('standards');
-        await copyDirContents('tools');
+        // Copy core standards and tools to .contextuate (engine files)
+        await copyDirContents('standards', path_1.default.join(installDir, 'standards'));
+        await copyDirContents('tools', path_1.default.join(installDir, 'tools'));
         console.log(chalk_1.default.green('[OK] Copied framework files'));
         console.log('');
-        // 3. Setup project context files
+        // 3. Install selected agents to docs/ai/agents/
+        if (selectedAgents.length > 0) {
+            console.log(chalk_1.default.blue('[INFO] Installing selected agents...'));
+            for (const agent of selectedAgents) {
+                const agentFile = `${agent}.agent.md`;
+                const srcPath = path_1.default.join(templateSource, 'agents', agentFile);
+                const destPath = path_1.default.join('docs/ai/agents', agentFile);
+                await copyFile(srcPath, destPath);
+            }
+            console.log(chalk_1.default.green(`[OK] Installed ${selectedAgents.length} agent(s) to docs/ai/agents/`));
+            console.log('');
+        }
+        // 4. Setup project context files
         console.log(chalk_1.default.blue('[INFO] Setting up project context...'));
-        // Copy contextuate.md (main entry point) to docs/ai/.contextuate/ (protected)
-        await copyFile(path_1.default.join(installDir, 'templates/contextuate.md'), 'docs/ai/.contextuate/contextuate.md');
-        // Copy context.md (user customizable) to docs/ai/
-        await copyFile(path_1.default.join(installDir, 'templates/context.md'), 'docs/ai/context.md');
+        // Copy contextuate.md (main entry point) directly from templates to docs/ai/.contextuate/ (protected)
+        await copyFile(path_1.default.join(templateSource, 'templates/contextuate.md'), 'docs/ai/.contextuate/contextuate.md');
+        // Copy context.md (user customizable) directly from templates to docs/ai/
+        await copyFile(path_1.default.join(templateSource, 'templates/context.md'), 'docs/ai/context.md');
         console.log('');
-        // 4. Generate jump files for selected platforms
+        // 5. Generate jump files for selected platforms
         console.log(chalk_1.default.blue('[INFO] Generating platform jump files...'));
         for (const platform of selectedPlatforms) {
             if (platform.ensureDir) {
                 await fs_extra_1.default.ensureDir(platform.ensureDir);
             }
-            await copyFile(path_1.default.join(installDir, platform.src), platform.dest);
+            // Copy directly from template source, not from .contextuate
+            await copyFile(path_1.default.join(templateSource, platform.src), platform.dest);
         }
         console.log('');
-        // 5. Create platform-specific symlinks (only for platforms that need them)
+        // 6. Create platform-specific symlinks (only for platforms that need them)
         const platformsWithSymlinks = selectedPlatforms.filter(p => p.symlinks);
         if (platformsWithSymlinks.length > 0) {
             console.log(chalk_1.default.blue('[INFO] Creating platform symlinks...'));
@@ -202,7 +371,7 @@ async function initCommand(options) {
                 catch {
                     // Not a symlink or doesn't exist
                     if (fs_extra_1.default.existsSync(linkPath)) {
-                        if (options.force) {
+                        if (opts.force) {
                             await fs_extra_1.default.remove(linkPath);
                         }
                         else {
@@ -219,6 +388,8 @@ async function initCommand(options) {
                 const symlinks = [
                     { target: 'docs/ai/commands', link: '.claude/commands' },
                     { target: 'docs/ai/agents', link: '.claude/agents' },
+                    { target: 'docs/ai/hooks', link: '.claude/hooks' },
+                    { target: 'docs/ai/skills', link: '.claude/skills' },
                 ];
                 for (const symlink of symlinks) {
                     await createSymlink(symlink.target, symlink.link);
@@ -226,60 +397,6 @@ async function initCommand(options) {
             }
             console.log('');
         }
-        // 6. Update .gitignore
-        console.log(chalk_1.default.blue('[INFO] Updating .gitignore...'));
-        const { addToGitignore } = await inquirer_1.default.prompt([
-            {
-                type: 'confirm',
-                name: 'addToGitignore',
-                message: 'Do you want to add Contextuate framework files to .gitignore? (Select No to commit them to git)',
-                default: true,
-            },
-        ]);
-        // Build gitignore entries based on selected platforms
-        const gitignoreEntries = [];
-        if (addToGitignore) {
-            gitignoreEntries.push('');
-            gitignoreEntries.push('# Contextuate - AI task tracking (user-specific)');
-            gitignoreEntries.push('docs/ai/tasks/');
-            gitignoreEntries.push('');
-            gitignoreEntries.push('# Contextuate - Framework files');
-            gitignoreEntries.push('docs/ai/.contextuate/');
-            // contextuate.md is now inside .contextuate, so it's covered by the line above
-            gitignoreEntries.push('');
-            gitignoreEntries.push('# Contextuate - Generated Artifacts (DO NOT EDIT)');
-            // Add entries for selected platforms
-            for (const platform of selectedPlatforms) {
-                if (platform.ensureDir) {
-                    gitignoreEntries.push(`${platform.ensureDir}/`);
-                }
-                else {
-                    gitignoreEntries.push(platform.dest);
-                }
-            }
-            // Add symlink entries if Claude is selected
-            if (selectedPlatforms.some(p => p.id === 'claude')) {
-                gitignoreEntries.push('');
-                gitignoreEntries.push('# Contextuate - Platform symlinks (symlinks to docs/ai/)');
-                gitignoreEntries.push('.claude/');
-            }
-        }
-        const gitignorePath = '.gitignore';
-        if (fs_extra_1.default.existsSync(gitignorePath)) {
-            const content = await fs_extra_1.default.readFile(gitignorePath, 'utf-8');
-            if (!content.includes('# Contextuate - Framework files')) {
-                await fs_extra_1.default.appendFile(gitignorePath, gitignoreEntries.join('\n') + '\n');
-                console.log(chalk_1.default.green('[OK] Added Contextuate entries to .gitignore'));
-            }
-            else {
-                console.log(chalk_1.default.yellow('[WARN] Contextuate entries already in .gitignore'));
-            }
-        }
-        else {
-            await fs_extra_1.default.writeFile(gitignorePath, gitignoreEntries.join('\n') + '\n');
-            console.log(chalk_1.default.green('[OK] Created .gitignore with Contextuate entries'));
-        }
-        console.log('');
         console.log(chalk_1.default.green('╔════════════════════════════════════════╗'));
         console.log(chalk_1.default.green('║     Installation Complete!             ║'));
         console.log(chalk_1.default.green('╚════════════════════════════════════════╝'));
@@ -289,11 +406,24 @@ async function initCommand(options) {
             console.log(`  - ${chalk_1.default.cyan(platform.name)} (${platform.dest})`);
         }
         console.log('');
+        if (selectedAgents.length > 0) {
+            console.log('Installed agents:');
+            for (const agent of selectedAgents) {
+                console.log(`  - ${chalk_1.default.cyan(agent)} (docs/ai/agents/${agent}.agent.md)`);
+            }
+            console.log('');
+        }
         console.log('Next steps:');
         console.log('');
         console.log(`  1. Edit ${chalk_1.default.blue('docs/ai/context.md')} with your project details`);
-        console.log(`  2. Create custom agents in ${chalk_1.default.blue('docs/ai/agents/')}`);
-        console.log(`  3. Add quickrefs in ${chalk_1.default.blue('docs/ai/quickrefs/')}`);
+        if (selectedAgents.length > 0) {
+            console.log(`  2. Review installed agents in ${chalk_1.default.blue('docs/ai/agents/')}`);
+            console.log(`  3. Add custom agents or quickrefs as needed`);
+        }
+        else {
+            console.log(`  2. Create custom agents in ${chalk_1.default.blue('docs/ai/agents/')}`);
+            console.log(`  3. Add quickrefs in ${chalk_1.default.blue('docs/ai/quickrefs/')}`);
+        }
         console.log('');
         console.log('');
         console.log('Documentation: https://contextuate.md');

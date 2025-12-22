@@ -17,6 +17,7 @@ export declare class EventBroker {
     private sessions;
     private config;
     private pendingSubagentSpawns;
+    private activeSubagentStack;
     constructor(config: MonitorConfig);
     /**
      * Start the event broker with the configured adapter
@@ -43,11 +44,27 @@ export declare class EventBroker {
      */
     getSession(sessionId: string): SessionMeta | undefined;
     /**
+     * Generate a short unique ID for virtual sessions
+     */
+    private generateVirtualSessionId;
+    /**
      * Handle an incoming event
      */
     private handleEvent;
     /**
-     * Track potential sub-agent spawns from Task tool calls
+     * Start tracking a subagent context when Task tool is called
+     */
+    private startSubagentContext;
+    /**
+     * End the current subagent context
+     */
+    private endSubagentContext;
+    /**
+     * Get the currently active subagent for a session (top of stack)
+     */
+    private getActiveSubagent;
+    /**
+     * Track potential sub-agent spawns from Task tool calls (for external session correlation)
      */
     private trackSubagentSpawn;
     /**

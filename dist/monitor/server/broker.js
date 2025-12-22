@@ -22,6 +22,9 @@ class EventBroker {
         this.sessions = new Map();
         // Track pending sub-agent spawns for correlation
         this.pendingSubagentSpawns = [];
+        // Track active subagents per session (stack to handle nested subagents)
+        // Key: original sessionId from Claude, Value: stack of active subagent contexts
+        this.activeSubagentStack = new Map();
         this.config = config;
     }
     /**
@@ -81,10 +84,45 @@ class EventBroker {
         return this.sessions.get(sessionId);
     }
     /**
+     * Generate a short unique ID for virtual sessions
+     */
+    generateVirtualSessionId() {
+        const chars = 'abcdef0123456789';
+        let id = '';
+        for (let i = 0; i < 8; i++) {
+            id += chars[Math.floor(Math.random() * chars.length)];
+        }
+        return id;
+    }
+    /**
      * Handle an incoming event
      */
     async handleEvent(event) {
-        // Check if this is a Task tool call (sub-agent spawn)
+        const originalSessionId = event.sessionId;
+        // Handle subagent lifecycle events
+        if (event.hookType === 'PreToolUse' && event.data.toolName === 'Task') {
+            // Task tool call - start tracking a new subagent
+            this.startSubagentContext(event);
+        }
+        else if (event.hookType === 'SubagentStop') {
+            // Subagent finished - end the virtual child session
+            this.endSubagentContext(event);
+        }
+        else if (event.hookType !== 'PostToolUse' || event.data.toolName !== 'Task') {
+            // Regular event - check if we should route to active subagent
+            // (Exclude PostToolUse Task as that belongs to the parent)
+            const activeSubagent = this.getActiveSubagent(originalSessionId);
+            if (activeSubagent) {
+                // Route this event to the virtual child session
+                // Set parentSessionId to link it back to the original parent
+                event = {
+                    ...event,
+                    sessionId: activeSubagent.virtualSessionId,
+                    parentSessionId: activeSubagent.parentSessionId,
+                };
+            }
+        }
+        // Track pending spawns for external session correlation (different CLI instances)
         this.trackSubagentSpawn(event);
         // Update session state
         await this.updateSession(event);
@@ -101,7 +139,69 @@ class EventBroker {
         this.emit('event', event);
     }
     /**
-     * Track potential sub-agent spawns from Task tool calls
+     * Start tracking a subagent context when Task tool is called
+     */
+    startSubagentContext(event) {
+        const toolInput = event.data.toolInput;
+        const agentType = toolInput?.subagent_type;
+        // Create a virtual session ID for this subagent
+        const virtualSessionId = this.generateVirtualSessionId();
+        // Get or create the stack for this session
+        let stack = this.activeSubagentStack.get(event.sessionId);
+        if (!stack) {
+            stack = [];
+            this.activeSubagentStack.set(event.sessionId, stack);
+        }
+        // Push the new subagent context
+        stack.push({
+            virtualSessionId,
+            parentSessionId: event.sessionId,
+            agentType,
+            startTime: event.timestamp,
+        });
+        console.log(`[Broker] Subagent started: ${virtualSessionId} (type: ${agentType || 'unknown'}) under ${event.sessionId}`);
+    }
+    /**
+     * End the current subagent context
+     */
+    endSubagentContext(event) {
+        const stack = this.activeSubagentStack.get(event.sessionId);
+        if (stack && stack.length > 0) {
+            const ended = stack.pop();
+            if (ended) {
+                // Mark the virtual session as completed
+                const session = this.sessions.get(ended.virtualSessionId);
+                if (session) {
+                    session.status = 'completed';
+                    session.endTime = event.timestamp;
+                    this.emit('session_updated', session);
+                    // Persist the update
+                    if (this.persistence) {
+                        this.persistence.saveSession(session).catch(err => {
+                            console.error('[Broker] Failed to persist session update:', err);
+                        });
+                    }
+                }
+                console.log(`[Broker] Subagent ended: ${ended.virtualSessionId}`);
+            }
+            // Clean up empty stack
+            if (stack.length === 0) {
+                this.activeSubagentStack.delete(event.sessionId);
+            }
+        }
+    }
+    /**
+     * Get the currently active subagent for a session (top of stack)
+     */
+    getActiveSubagent(sessionId) {
+        const stack = this.activeSubagentStack.get(sessionId);
+        if (stack && stack.length > 0) {
+            return stack[stack.length - 1];
+        }
+        return undefined;
+    }
+    /**
+     * Track potential sub-agent spawns from Task tool calls (for external session correlation)
      */
     trackSubagentSpawn(event) {
         // Detect Task tool PreToolUse events
@@ -198,10 +298,20 @@ class EventBroker {
             // Create new session
             isNew = true;
             // Try to determine parent session and agent type
-            // 1. Use explicit parentSessionId from event if available
-            // 2. Otherwise, try to correlate with recent Task tool calls
+            // 1. Check if this is a virtual session from active subagent tracking
+            // 2. Use explicit parentSessionId from event if available
+            // 3. Otherwise, try to correlate with recent Task tool calls
             let parentSessionId = event.parentSessionId;
             let agentType;
+            // Check if this session ID matches an active subagent (virtual session)
+            for (const [origSessionId, stack] of this.activeSubagentStack.entries()) {
+                const activeSubagent = stack.find(s => s.virtualSessionId === event.sessionId);
+                if (activeSubagent) {
+                    parentSessionId = activeSubagent.parentSessionId;
+                    agentType = activeSubagent.agentType;
+                    break;
+                }
+            }
             if (!parentSessionId) {
                 const correlation = this.correlateSubagentSpawn(event.sessionId, event.workingDirectory, event.timestamp);
                 if (correlation) {

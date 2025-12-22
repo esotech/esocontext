@@ -380,10 +380,21 @@ export class EventBroker {
       isNew = true;
 
       // Try to determine parent session and agent type
-      // 1. Use explicit parentSessionId from event if available
-      // 2. Otherwise, try to correlate with recent Task tool calls
+      // 1. Check if this is a virtual session from active subagent tracking
+      // 2. Use explicit parentSessionId from event if available
+      // 3. Otherwise, try to correlate with recent Task tool calls
       let parentSessionId = event.parentSessionId;
       let agentType: string | undefined;
+
+      // Check if this session ID matches an active subagent (virtual session)
+      for (const [origSessionId, stack] of this.activeSubagentStack.entries()) {
+        const activeSubagent = stack.find(s => s.virtualSessionId === event.sessionId);
+        if (activeSubagent) {
+          parentSessionId = activeSubagent.parentSessionId;
+          agentType = activeSubagent.agentType;
+          break;
+        }
+      }
 
       if (!parentSessionId) {
         const correlation = this.correlateSubagentSpawn(

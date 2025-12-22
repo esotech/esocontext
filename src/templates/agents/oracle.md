@@ -3,6 +3,9 @@ name: "oracle"
 description: "Database Query Expert"
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "opus"
 ---
 
 # Oracle (Database Queries)

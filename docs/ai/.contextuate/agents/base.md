@@ -38,8 +38,8 @@ Every agent MUST read context in this order:
 
 1. **`docs/context.md`** - Project-specific context (always first)
 2. **Framework standards** (as needed):
-   - `docs/ai/.context/standards/coding-standards.md`
-   - `docs/ai/.context/standards/behavioral-guidelines.md`
+   - `docs/ai/.contextuate/standards/coding-standards.md`
+   - `docs/ai/.contextuate/standards/behavioral-guidelines.md`
 3. **Specialized agent definition** (if applicable)
 4. **Relevant quickrefs** in `docs/ai/quickrefs/`
 5. **Task context** in `docs/ai/tasks/{task}/` (if working on a task)
@@ -75,22 +75,22 @@ Every agent MUST read context in this order:
 
 ### Documentation Locations
 
-| Type            | Location             | Purpose                     |
-| --------------- | -------------------- | --------------------------- |
-| Project context | `docs/context.md`    | Main entry point            |
-| Project docs    | `docs/`              | Human + AI documentation    |
-| User agents     | `docs/ai/agents/`    | Custom agent definitions    |
-| Quick refs      | `docs/ai/quickrefs/` | Condensed references        |
-| Tasks           | `docs/ai/tasks/`     | Multi-session task tracking |
-| Framework       | `docs/ai/.context/`  | Core framework (read-only)  |
+| Type            | Location                 | Purpose                     |
+| --------------- | ------------------------ | --------------------------- |
+| Project context | `docs/context.md`        | Main entry point            |
+| Project docs    | `docs/`                  | Human + AI documentation    |
+| User agents     | `docs/ai/agents/`        | Custom agent definitions    |
+| Quick refs      | `docs/ai/quickrefs/`     | Condensed references        |
+| Tasks           | `docs/ai/tasks/`         | Multi-session task tracking |
+| Framework       | `docs/ai/.contextuate/`  | Core framework (read-only)  |
 
 ### Framework Standards
 
-| Standard      | Location                                              |
-| ------------- | ----------------------------------------------------- |
-| Coding        | `docs/ai/.context/standards/coding-standards.md`      |
-| Behavioral    | `docs/ai/.context/standards/behavioral-guidelines.md` |
-| Task workflow | `docs/ai/.context/standards/task-workflow.md`         |
+| Standard      | Location                                                  |
+| ------------- | --------------------------------------------------------- |
+| Coding        | `docs/ai/.contextuate/standards/coding-standards.md`      |
+| Behavioral    | `docs/ai/.contextuate/standards/behavioral-guidelines.md` |
+| Task workflow | `docs/ai/.contextuate/standards/task-workflow.md`         |
 
 ---
 
@@ -98,10 +98,10 @@ Every agent MUST read context in this order:
 
 When a task requires specialized expertise, delegate to the appropriate agent:
 
-| Expertise Needed    | Agent         | Location                                         |
-| ------------------- | ------------- | ------------------------------------------------ |
-| Creating new agents | Agent Creator | `docs/ai/.context/agents/agent-creator.md` |
-| {Custom agents}     | {Agent name}  | `docs/ai/agents/{name}.md`                 |
+| Expertise Needed    | Agent         | Location                                             |
+| ------------------- | ------------- | ---------------------------------------------------- |
+| Creating new agents | Agent Creator | `docs/ai/.contextuate/agents/agent-creator.md` |
+| {Custom agents}     | {Agent name}  | `docs/ai/agents/{name}.md`                     |
 
 Projects define their own specialized agents in `docs/ai/agents/`.
 
@@ -159,8 +159,8 @@ Projects define their own specialized agents in `docs/ai/agents/`.
 
 All specialized agents automatically inherit these rules. Agent-specific files should:
 
-1. Reference this base: `> **Inherits:** [Base Agent](../base.md)`
+1. Reference this base: `> **Inherits:** [Base Agent](base.md)`
 2. Only define domain-specific additions
 3. Not contradict base rules (unless explicitly overriding)
 
-See [Agent Creator](agent-creator.md) for creating new agents.
+See the Agent Creator tool for creating new agents.

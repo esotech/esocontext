@@ -3,6 +3,9 @@ name: "unity"
 description: "Release Manager & Version Control Specialist"
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # Unity (Git & Conflict Resolution)

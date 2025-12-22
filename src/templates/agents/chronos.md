@@ -3,6 +3,9 @@ name: "chronos"
 description: "Database Administrator & Data Engineer"
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # Chronos (Data & State)

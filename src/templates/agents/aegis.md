@@ -3,6 +3,9 @@ name: "aegis"
 description: "Code Review & Quality Expert"
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # Aegis (Code Review & Quality)

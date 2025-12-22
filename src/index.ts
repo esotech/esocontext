@@ -8,6 +8,7 @@ import { createAgentCommand } from './commands/create';
 import { indexCommand } from './commands/index';
 import { addContextCommand } from './commands/context';
 import { installCommand, installAgentsCommand, installStandardsCommand, installToolsCommand } from './commands/install';
+import { monitorInitCommand, monitorStartCommand, monitorStatusCommand } from './commands/monitor';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -104,5 +105,43 @@ install
     .option('--all', 'Install all tools')
     .option('-f, --force', 'Overwrite existing files')
     .action(installToolsCommand);
+
+// Monitor command with subcommands
+const monitor = program
+    .command('monitor')
+    .description('Real-time monitoring dashboard for Claude Code sessions')
+    .option('-p, --port <number>', 'HTTP server port')
+    .option('-w, --ws-port <number>', 'WebSocket server port')
+    .option('--no-open', 'Do not open browser automatically')
+    .action((options) => monitorStartCommand({
+        port: options.port ? parseInt(options.port) : undefined,
+        wsPort: options.wsPort ? parseInt(options.wsPort) : undefined,
+        noOpen: options.open === false,
+    }));
+
+// Subcommand: monitor init
+monitor
+    .command('init')
+    .description('Initialize monitor configuration and install hooks')
+    .action(monitorInitCommand);
+
+// Subcommand: monitor start (explicit)
+monitor
+    .command('start')
+    .description('Start the monitor server')
+    .option('-p, --port <number>', 'HTTP server port')
+    .option('-w, --ws-port <number>', 'WebSocket server port')
+    .option('--no-open', 'Do not open browser automatically')
+    .action((options) => monitorStartCommand({
+        port: options.port ? parseInt(options.port) : undefined,
+        wsPort: options.wsPort ? parseInt(options.wsPort) : undefined,
+        noOpen: options.open === false,
+    }));
+
+// Subcommand: monitor status
+monitor
+    .command('status')
+    .description('Show monitor server status')
+    .action(monitorStatusCommand);
 
 program.parse();

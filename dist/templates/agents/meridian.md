@@ -3,6 +3,9 @@ name: "meridian"
 description: "Schema & Migrations Expert"
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # Meridian (Schema/Migrations)

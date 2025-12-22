@@ -3,6 +3,9 @@ name: "echo"
 description: "Frontend & JavaScript Expert"
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # Echo (Frontend/JavaScript)

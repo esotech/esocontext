@@ -3,6 +3,9 @@ name: "scribe"
 description: "Technical writer and documentation expert for API docs, user guides, and architectural decision records. Use for documentation tasks."
 version: "1.0.0"
 inherits: "documentation-expert"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # SCRIBE - Documentation & Technical Writing Agent

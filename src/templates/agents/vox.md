@@ -3,6 +3,9 @@ name: "vox"
 description: "Media Streaming & Communications Specialist"
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # Vox (Media & Communications)

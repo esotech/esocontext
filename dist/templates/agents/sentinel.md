@@ -3,6 +3,9 @@ name: "sentinel"
 description: "Security Expert"
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "opus"
 ---
 
 # Sentinel (Security)

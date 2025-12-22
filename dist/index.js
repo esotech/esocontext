@@ -9,6 +9,7 @@ const create_1 = require("./commands/create");
 const index_1 = require("./commands/index");
 const context_1 = require("./commands/context");
 const install_1 = require("./commands/install");
+const monitor_1 = require("./commands/monitor");
 const fs_1 = require("fs");
 const path_1 = require("path");
 const program = new commander_1.Command();
@@ -93,4 +94,38 @@ install
     .option('--all', 'Install all tools')
     .option('-f, --force', 'Overwrite existing files')
     .action(install_1.installToolsCommand);
+// Monitor command with subcommands
+const monitor = program
+    .command('monitor')
+    .description('Real-time monitoring dashboard for Claude Code sessions')
+    .option('-p, --port <number>', 'HTTP server port')
+    .option('-w, --ws-port <number>', 'WebSocket server port')
+    .option('--no-open', 'Do not open browser automatically')
+    .action((options) => (0, monitor_1.monitorStartCommand)({
+    port: options.port ? parseInt(options.port) : undefined,
+    wsPort: options.wsPort ? parseInt(options.wsPort) : undefined,
+    noOpen: options.open === false,
+}));
+// Subcommand: monitor init
+monitor
+    .command('init')
+    .description('Initialize monitor configuration and install hooks')
+    .action(monitor_1.monitorInitCommand);
+// Subcommand: monitor start (explicit)
+monitor
+    .command('start')
+    .description('Start the monitor server')
+    .option('-p, --port <number>', 'HTTP server port')
+    .option('-w, --ws-port <number>', 'WebSocket server port')
+    .option('--no-open', 'Do not open browser automatically')
+    .action((options) => (0, monitor_1.monitorStartCommand)({
+    port: options.port ? parseInt(options.port) : undefined,
+    wsPort: options.wsPort ? parseInt(options.wsPort) : undefined,
+    noOpen: options.open === false,
+}));
+// Subcommand: monitor status
+monitor
+    .command('status')
+    .description('Show monitor server status')
+    .action(monitor_1.monitorStatusCommand);
 program.parse();

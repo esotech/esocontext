@@ -1,114 +1,124 @@
 # Project Context
 
-> **Purpose:** Master index for AI assistants working with this project. This is the primary entry point for all AI context.
-> **Directive:** Read this file first. It is the "Brain" of the project.
+> **Purpose:** User-defined project context for AI assistants. This file contains project-specific identity, tech stack, and custom configurations.
+> **Directive:** This file is linked from the framework entry point (`docs/ai/.contextuate/contextuate.md`). Edit this file freely to customize your project context.
+
+---
+
+## File Ownership
+
+| Path | Owner | Editable? |
+|------|-------|-----------|
+| `docs/ai/.contextuate/` | Framework (Contextuate) | No - overwritten on updates |
+| `docs/ai/context.md` | User (You) | Yes - customize freely |
+| `docs/ai/agents/` | User | Yes - your custom agents |
+| `docs/ai/standards/` | User | Yes - your custom standards |
+| `docs/ai/quickrefs/` | User | Yes - your generated quickrefs |
+| `docs/ai/tasks/` | User | Yes - your multi-session tasks |
+
+The `.contextuate/` folder contains immutable framework definitions that bootstrap AI context loading. The framework entry point (`contextuate.md`) links to this file for project-specific details.
 
 ---
 
 ## 1. Project Identity
 
-**Project Name:** {YOUR_PROJECT_NAME}
+**Project Name:** Contextuate
 
-**Description:** {Brief description of what this project does}
+**Package:** `@esotech/contextuate`
+
+**Version:** 2.0.0
+
+**Author:** Alexander David Conroy ([@geilt](https://github.com/geilt))
+
+**Description:** Standardized AI Context for Software Projects. Contextuate provides a structured "brain" for your project that AI coding assistants (Claude, Copilot, Cursor, Windsurf, etc.) can understand. It standardizes how AI agents receive context, follow coding standards, and execute tasks.
 
 **Tech Stack:**
-- **Languages:** {Language 1}, {Language 2}
-- **Frameworks:** {Framework 1}, {Framework 2}
-- **Infrastructure:** {Database}, {Cloud Provider}
+- **Languages:** TypeScript, JavaScript, Markdown
+- **Runtime:** Node.js (CommonJS)
+- **CLI Framework:** Commander.js
+- **Web Server:** Fastify (for monitor UI)
+- **UI Framework:** Vue.js (monitor dashboard)
+- **Build Tool:** TypeScript Compiler (tsc), Vite (monitor UI)
+- **Infrastructure:**
+  - WebSockets (ws) - real-time communication
+  - Redis (ioredis) - optional caching/pub-sub
+  - PostgreSQL - optional persistence
 
 ---
 
-## 2. Agent Framework
+## 2. Key Concepts
 
-> **Rule:** If a specialized agent exists for your task, you MUST adopt that persona and read its specific context.
+### Framework Bootstrap Pattern
+The entry point for AI context is `docs/ai/.contextuate/contextuate.md`. This file bootstraps the entire framework and links to all resources. AI assistants should read this file first, then selectively load only the context they need for their current task.
 
-### Agent Registry
-| Task Domain | Agent | Context File |
-|-------------|-------|--------------|
-| General Coding | Base Agent | [.context/agents/base.md](.context/agents/base.md) |
-| Documentation | Docs Expert | [.context/agents/documentation-expert.md](.context/agents/documentation-expert.md) |
-| Tool Usage | Tools Expert | [.context/agents/tools-expert.md](.context/agents/tools-expert.md) |
-| {Custom Domain} | {Custom Agent} | [agents/{agent}.md](agents/{agent}.md) |
+### Agent System
+Agents are specialized AI personas with defined capabilities, rules, and context requirements. They are stored in `docs/ai/agents/` and can be executed via `contextuate run <agent-name>`. Agents inherit from a base definition and can have custom tools, standards, and behavioral guidelines.
 
-### How to Create Agents
-If you need expertise that doesn't exist yet:
-1. Load the **Tools Expert** agent.
-2. Request: "Create a new agent for {domain}".
-3. It will use the `agent-creator.tool.md` to generate the file in `docs/ai/agents/`.
+### Standards & Conventions
+Explicit coding standards are stored in `docs/ai/standards/`. These include language-specific patterns (TypeScript, Python, PHP, Go, Java) and behavioral guidelines that ensure consistent AI output across sessions.
 
----
-
-## 3. Tooling Ecosystem
-
-### Framework Tools
-These tools are available to help you perform complex tasks.
-
-| Tool | Purpose | Instruction Guide |
-|------|---------|-------------------|
-| **Standards Detector** | Analyze code to find patterns | [.context/tools/standards-detector.tool.md](.context/tools/standards-detector.tool.md) |
-| **Quickref Generator** | Condense docs for AI usage | [.context/tools/quickref.tool.md](.context/tools/quickref.tool.md) |
-| **Agent Creator** | Generate new agent personas | [.context/tools/agent-creator.tool.md](.context/tools/agent-creator.tool.md) |
-
-### Project Tools
-| Command | Description |
-|---------|-------------|
-| `npm test` | Run test suite |
-| `npm run build` | Build production artifacts |
-| `{custom command}` | {description} |
-
----
-
-## 4. Standards & Conventions
-
-### Coding Standards
-**[Coding Standards](.context/standards/coding-standards.md)**
-- **PHP:** `templates/standards/php.standards.md`
-- **JS/TS:** `templates/standards/javascript.standards.md`
-- **Python:** `templates/standards/python.standards.md`
-- **Go:** `templates/standards/go.standards.md`
-- **Java:** `templates/standards/java.standards.md`
-(Customize these in `standards/`)
-
-### Behavioral Guidelines
-**[Behavioral Guidelines](.context/standards/behavioral-guidelines.md)**
-- Verified Truth: Do not speculate.
-- Minimal Intervention: Only change what is requested.
-
----
-
-## 5. Documentation Strategy
-
-> **Rule:** Store knowledge where it belongs. Do not rely on chat history.
-
-| Content Type | Location |
-|--------------|----------|
-| **AI Context** | `docs/ai/` (This folder) |
-| **Source Code** | `src/` |
-| **Human Docs** | `docs/` |
-| **Architecture** | `docs/architecture/` |
-| **Services** | `docs/services/` |
-| **API** | `docs/api/` |
+### Quick References (Quickrefs)
+Condensed documentation optimized for AI token limits. Generated using the Quickref Generator tool and stored in `docs/ai/quickrefs/`. These provide essential API references without overwhelming context windows.
 
 ### Multi-Session Tasks
-For complex tasks that span multiple sessions, use the **Task Workflow**:
-1. Read **[Task Workflow](.context/standards/task-workflow.md)**.
-2. Create a folder in `docs/ai/tasks/{task-name}/`.
-3. Maintain a `00-project-scope.md` and log files.
+Complex tasks that span multiple AI sessions use a structured workflow. Task state is persisted in `docs/ai/tasks/<task-name>/` with a project scope file and incremental logs, allowing AI to resume work with full context.
+
+### Platform Integration
+Contextuate supports multiple AI platforms through platform-specific configuration files:
+- **Claude Code:** `.claude/` symlink
+- **Cursor:** `.cursor/rules/`
+- **Copilot:** `.github/copilot-instructions.md`
+- **Windsurf:** `.windsurfrules`
+- **Cline/Antigravity/Gemini:** Similar patterns
 
 ---
 
-## 6. Key Concepts
+## 3. Project Structure
 
-### {Concept 1}
-{Explanation of important concept}
-
-### {Concept 2}
-{Explanation of important concept}
+```
+contextuate/
+├── src/                    # TypeScript source code
+│   ├── index.ts           # CLI entry point
+│   ├── commands/          # CLI command implementations
+│   │   ├── init.ts        # Initialize framework in project
+│   │   ├── install.ts     # Install templates
+│   │   ├── run.ts         # Execute agents
+│   │   ├── create.ts      # Create new agents
+│   │   ├── index.ts       # Generate file tree index
+│   │   ├── context.ts     # Add files to context
+│   │   └── remove.ts      # Clean up framework files
+│   ├── runtime/           # Agent execution runtime
+│   ├── utils/             # Shared utilities
+│   ├── types/             # TypeScript type definitions
+│   └── monitor/           # Real-time monitoring dashboard
+│       └── ui/            # Vue.js frontend
+├── dist/                  # Compiled output
+├── docs/ai/               # AI context (project-specific)
+│   ├── context.md         # This file
+│   └── .contextuate/      # Framework files
+└── package.json
+```
 
 ---
 
-## 7. Resources
+## 4. CLI Commands
 
-- **Repository:** {URL}
-- **Issue Tracker:** {URL}
-- **Staging/Prod:** {URL}
+| Command | Description |
+|---------|-------------|
+| `contextuate init` | Initialize framework in a project |
+| `contextuate install` | Install templates (agents, standards, tools) |
+| `contextuate run <agent>` | Execute an agent with optional goal/task |
+| `contextuate create-agent` | Create a new agent definition |
+| `contextuate index` | Generate project structure file tree |
+| `contextuate add-context` | Interactively add files to context |
+| `contextuate remove` | Remove framework files |
+
+---
+
+## 5. Resources
+
+- **Repository:** https://github.com/esotech/contextuate
+- **Issue Tracker:** https://github.com/esotech/contextuate/issues
+- **Documentation:** https://contextuate.md
+- **npm Package:** https://www.npmjs.com/package/@esotech/contextuate
+- **License:** MIT

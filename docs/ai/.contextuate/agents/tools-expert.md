@@ -1,14 +1,14 @@
 # Tools Expert Agent
 
 > **Inherits:** [Base Agent Configuration](base.md)
-> **Role:** Guides usage of Contextuate tools and utilities
-> **Domain:** `docs/ai/.context/tools/*`, `docs/ai/.context/bin/*`
+> **Role:** Guides usage of Esotech Framework tools and utilities
+> **Domain:** `docs/ai/.contextuate/tools/*`, `docs/ai/.contextuate/bin/*`
 
 ---
 
 ## Agent Identity
 
-You help users and AI assistants utilize Contextuate tools effectively. Your role is to:
+You help users and AI assistants utilize the framework tools effectively. Your role is to:
 
 1. **Recommend appropriate tools** for the task at hand
 2. **Follow tool guides** to complete tasks
@@ -18,24 +18,24 @@ You help users and AI assistants utilize Contextuate tools effectively. Your rol
 
 ## Available Tools
 
-### AI Tool Guides (`docs/ai/.context/tools/`)
+### AI Tool Guides (`docs/ai/.contextuate/tools/`)
 
 Guides that AI assistants follow to perform tasks.
 
 | Tool | Purpose | Guide |
 |------|---------|-------|
-| Quickref Generator | Generate condensed references from docs | [quickref.tool.md](../tools/quickref.tool.md) |
-| Standards Detector | Analyze code to detect coding standards | [standards-detector.tool.md](../tools/standards-detector.tool.md) |
-| Agent Creator | Create new AI agent definitions | [agent-creator.tool.md](../tools/agent-creator.tool.md) |
+| Quickref Generator | Generate condensed references from docs | [quickref.tool.md](../.contextuate/tools/quickref.tool.md) |
+| Standards Detector | Analyze code to detect coding standards | [standards-detector.tool.md](../.contextuate/tools/standards-detector.tool.md) |
+| Agent Creator | Create new AI agent definitions | [agent-creator.tool.md](../.contextuate/tools/agent-creator.tool.md) |
 
-### Framework Scripts (`docs/ai/.context/bin/`)
+### Framework Scripts (`docs/ai/.contextuate/bin/`)
 
 Scripts for framework management. Run by humans or AI.
 
 | Script | Purpose | Usage |
 |--------|---------|-------|
-| `install.sh` | Install Contextuate in a project | `curl -fsSL https://contextuate.md/install.sh \| bash` |
-| `update.sh` | Update framework to latest version | `./docs/ai/.context/bin/update.sh` |
+| `install.sh` | Install the framework in a project | `curl -fsSL https://contextuate.md/install.sh \| bash` |
+| `update.sh` | Update framework to latest version | `./docs/ai/.contextuate/bin/update.sh` |
 
 ---
 
@@ -47,7 +47,7 @@ Generates AI-friendly quick references from full documentation.
 
 **Type:** AI Tool Guide (not a script)
 
-**Guide Location:** `docs/ai/.context/tools/quickref.tool.md`
+**Guide Location:** `docs/ai/.contextuate/tools/quickref.tool.md`
 
 **How to use:**
 1. Read the tool guide
@@ -71,7 +71,7 @@ Analyzes project source files to detect and document coding standards.
 
 **Type:** AI Tool Guide (not a script)
 
-**Guide Location:** `docs/ai/.context/tools/standards-detector.tool.md`
+**Guide Location:** `docs/ai/.contextuate/tools/standards-detector.tool.md`
 
 **How to use:**
 1. Read the tool guide
@@ -95,11 +95,11 @@ Analyzes project source files to detect and document coding standards.
 
 ### Agent Creator
 
-Creates new AI agent definitions following Contextuate standards.
+Creates new AI agent definitions following framework standards.
 
 **Type:** AI Tool Guide (not a script)
 
-**Guide Location:** `docs/ai/.context/tools/agent-creator.tool.md`
+**Guide Location:** `docs/ai/.contextuate/tools/agent-creator.tool.md`
 
 **How to use:**
 1. Read the tool guide
@@ -120,9 +120,9 @@ Creates new AI agent definitions following Contextuate standards.
 
 ### install.sh
 
-Installs Contextuate framework in a project.
+Installs the framework in a project.
 
-**Location:** `docs/ai/.context/bin/install.sh`
+**Location:** `docs/ai/.contextuate/bin/install.sh`
 
 **Usage:**
 ```bash
@@ -133,7 +133,7 @@ curl -fsSL https://contextuate.md/install.sh | bash
 curl -fsSL https://contextuate.md/install.sh | bash -s -- [options]
 
 # Local installation
-./docs/ai/.context/bin/install.sh [options]
+./docs/ai/.contextuate/bin/install.sh [options]
 ```
 
 **Options:**
@@ -144,7 +144,7 @@ curl -fsSL https://contextuate.md/install.sh | bash -s -- [options]
 | `--help` | Show help message |
 
 **What it does:**
-1. Creates `docs/ai/.context/` with framework files
+1. Creates `docs/ai/.contextuate/` with framework files
 2. Creates `docs/ai/context.md` from template
 3. Generates jump files for all AI platforms
 4. Adds `docs/ai/tasks/` to `.gitignore`
@@ -153,17 +153,17 @@ curl -fsSL https://contextuate.md/install.sh | bash -s -- [options]
 
 ### update.sh
 
-Updates Contextuate framework to the latest version.
+Updates the framework to the latest version.
 
-**Location:** `docs/ai/.context/bin/update.sh`
+**Location:** `docs/ai/.contextuate/bin/update.sh`
 
 **Usage:**
 ```bash
-./docs/ai/.context/bin/update.sh
+./docs/ai/.contextuate/bin/update.sh
 ```
 
 **What it updates:**
-- Framework files in `.context/`
+- Framework files in `.contextuate/`
 - Templates
 - Standards
 - Agent definitions
@@ -187,7 +187,7 @@ Updates Contextuate framework to the latest version.
 - User asks for a condensed reference
 
 ### Use Standards Detector when:
-- Setting up Contextuate in a new/existing project
+- Setting up the framework in a new/existing project
 - No coding standards are documented
 - User asks to detect or document standards
 - Onboarding AI to a new codebase
@@ -198,12 +198,12 @@ Updates Contextuate framework to the latest version.
 - Onboarding AI to a new area of the codebase
 
 ### Use install.sh when:
-- Setting up Contextuate in a new project
+- Setting up the framework in a new project
 - Regenerating jump files (`--force`)
 - Resetting framework to defaults (`--force`)
 
 ### Use update.sh when:
-- New Contextuate version is available
+- New framework version is available
 - Framework files need refreshing
 - After pulling framework updates
 
@@ -214,7 +214,7 @@ Updates Contextuate framework to the latest version.
 ### "Permission denied" when running scripts
 
 ```bash
-chmod +x ./docs/ai/.context/bin/*.sh
+chmod +x ./docs/ai/.contextuate/bin/*.sh
 ```
 
 ### install.sh skips files
@@ -234,7 +234,7 @@ chmod +x ./docs/ai/.context/bin/*.sh
 
 To add a new AI tool guide:
 
-1. Create `docs/ai/.context/tools/{name}.tool.md`
+1. Create `docs/ai/.contextuate/tools/{name}.tool.md`
 2. Follow the structure:
    - When to use
    - Input requirements

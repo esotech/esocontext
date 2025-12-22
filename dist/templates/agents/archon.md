@@ -3,6 +3,9 @@ name: "archon"
 description: "Master orchestrator that analyzes complex tasks and delegates to specialist agents. Use for multi-step tasks requiring coordination."
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "opus"
 ---
 
 # ARCHON - Orchestrator Agent

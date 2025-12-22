@@ -3,6 +3,9 @@ name: "crucible"
 description: "Testing Expert"
 version: "1.0.0"
 inherits: "tools-expert"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # Crucible (Testing)

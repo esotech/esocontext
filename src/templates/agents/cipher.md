@@ -3,6 +3,9 @@ name: "cipher"
 description: "Data Transformation Expert"
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # Cipher (Data Transformation)

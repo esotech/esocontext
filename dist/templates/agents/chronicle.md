@@ -3,6 +3,9 @@ name: "chronicle"
 description: "Documentation Expert"
 version: "1.0.0"
 inherits: "documentation-expert"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # Chronicle (Documentation)

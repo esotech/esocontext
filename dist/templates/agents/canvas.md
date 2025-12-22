@@ -3,6 +3,9 @@ name: "canvas"
 description: "Senior Frontend Engineer"
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # Canvas (Frontend & Experience)

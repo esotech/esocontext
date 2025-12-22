@@ -3,6 +3,9 @@ name: "nexus"
 description: "Backend services and integrations expert for APIs, business logic, and third-party integrations. Use for creating services or API endpoints."
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # NEXUS - Backend Services & Integrations Agent

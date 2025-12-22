@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar for dark mode */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Event type colors */
+.event-session_start { @apply text-green-400; }
+.event-session_end { @apply text-gray-400; }
+.event-tool_call { @apply text-blue-400; }
+.event-tool_result { @apply text-cyan-400; }
+.event-message { @apply text-white; }
+.event-notification { @apply text-yellow-400; }
+.event-thinking { @apply text-purple-400; }
+.event-error { @apply text-red-400; }
+.event-agent_spawn { @apply text-orange-400; }
+.event-agent_complete { @apply text-lime-400; }
+
+/* Connection status indicators */
+.status-connected { @apply text-green-400; }
+.status-connecting { @apply text-yellow-400; }
+.status-disconnected { @apply text-red-400; }
+
+/* Session status colors */
+.session-active { @apply border-l-green-500; }
+.session-completed { @apply border-l-gray-500; }
+.session-error { @apply border-l-red-500; }
+
+/* Animations */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/* JSON syntax highlighting */
+.json-key { @apply text-cyan-400; }
+.json-string { @apply text-green-400; }
+.json-number { @apply text-yellow-400; }
+.json-boolean { @apply text-purple-400; }
+.json-null { @apply text-gray-500; }
+
+/* Code blocks */
+.code-block {
+  @apply font-mono text-sm bg-slate-800 rounded p-3 overflow-x-auto;
+}
+
+/* Tool badges */
+.tool-badge {
+  @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+}
+
+.tool-badge-read { @apply bg-blue-900 text-blue-200; }
+.tool-badge-write { @apply bg-orange-900 text-orange-200; }
+.tool-badge-bash { @apply bg-green-900 text-green-200; }
+.tool-badge-edit { @apply bg-yellow-900 text-yellow-200; }
+.tool-badge-other { @apply bg-gray-700 text-gray-300; }

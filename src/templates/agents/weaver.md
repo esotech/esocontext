@@ -3,6 +3,9 @@ name: "weaver"
 description: "Controllers & Views Expert"
 version: "1.0.0"
 inherits: "base"
+provider:
+  type: "anthropic"
+  model: "sonnet"
 ---
 
 # Weaver (Controllers/Views)

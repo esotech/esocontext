@@ -17,10 +17,19 @@ When this skill is invoked, Claude will:
 3. **Coordinate handoffs** between agents for dependent tasks
 4. **Synthesize results** into a cohesive solution
 
+## Pre-Orchestration
+
+For complex or unfamiliar work, use `/pythia` BEFORE `/orchestrate`:
+```
+/pythia [research/plan topic]  →  produces specification
+/orchestrate [implement spec]  →  delegates to specialists
+```
+
 ## Available Specialist Agents
 
 | Agent | Domain | Use For |
 |-------|--------|---------|
+| **pythia** | Planning/Research | Pre-implementation research, ideation, specification |
 | **aegis** | Quality/Review | Code review, best practices |
 | **atlas** | Navigation | Codebase exploration, file search |
 | **canvas** | Frontend/UX | UI components, design systems |

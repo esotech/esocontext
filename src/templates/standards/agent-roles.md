@@ -4,6 +4,9 @@ Overview of the specialized agents available in this framework. Each agent has a
 
 ## Core Team
 
+### [Pythia (Planning Oracle)](../agents/pythia.md)
+Strategic Planner & Research Oracle. Pre-implementation research, ideation, and specification. Use BEFORE Archon for complex or unfamiliar work.
+
 ### [Archon (Orchestrator)](../agents/archon.md)
 Project Manager & Technical Lead. Parses user requests and manages the creation of tasks.
 

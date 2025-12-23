@@ -62,7 +62,13 @@
 
 /* Code blocks */
 .code-block {
-  @apply font-mono text-sm bg-slate-800 rounded p-3 overflow-x-auto;
+  @apply font-mono text-sm bg-slate-800 rounded p-3;
+}
+
+/* Word wrap utility */
+.word-wrap-break {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* Tool badges */

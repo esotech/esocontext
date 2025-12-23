@@ -75,24 +75,63 @@ function loadConfig() {
 }
 
 /**
- * Generate or retrieve session ID
- * Claude doesn't provide a session ID, so we derive one from:
- * - PID of the parent process
- * - TTY or pseudo-terminal
- * - Start time (cached)
+ * Extract session ID from Claude's transcript path
+ * Transcript paths look like: ~/.claude/projects/{hash}/.claude/transcript_{sessionId}.jsonl
+ * The sessionId part is unique per Claude session
  */
-function getSessionId() {
+function extractSessionFromTranscript(transcriptPath) {
+  if (!transcriptPath) return null;
+
+  // Try to extract session ID from transcript filename
+  // Format: transcript_{sessionId}.jsonl or similar
+  const match = transcriptPath.match(/transcript[_-]?([a-zA-Z0-9-]+)\.jsonl$/);
+  if (match) {
+    // Hash the full path to get a shorter, consistent ID
+    const hash = crypto.createHash('sha256');
+    hash.update(transcriptPath);
+    return hash.digest('hex').slice(0, 16);
+  }
+
+  return null;
+}
+
+/**
+ * Generate or retrieve session ID
+ * Priority:
+ * 1. For SubagentStart/SubagentStop: use agent_id (subagent's own ID)
+ * 2. Claude's session_id from hook payload (best - unique per Claude session)
+ * 3. CLAUDE_SESSION_ID environment variable (if set)
+ * 4. Fallback to TTY+cwd based caching
+ */
+function getSessionId(hookPayload) {
+  // For subagent events, use agent_id as the session ID
+  // The session_id in these events is actually the PARENT session
+  if (hookPayload && (hookPayload.hook_event_name === 'SubagentStart' || hookPayload.hook_event_name === 'SubagentStop')) {
+    if (hookPayload.agent_id) {
+      return hookPayload.agent_id;
+    }
+  }
+
+  // Use Claude's session_id directly if provided (this is the real session ID!)
+  if (hookPayload && hookPayload.session_id) {
+    // Shorten UUID to 16 chars for consistency
+    return hookPayload.session_id.replace(/-/g, '').slice(0, 16);
+  }
+
   // Check for explicit session ID in environment
   if (process.env.CLAUDE_SESSION_ID) {
     return process.env.CLAUDE_SESSION_ID;
   }
 
-  // Generate consistent session ID based on process info
-  const ppid = process.ppid || process.pid;
-  const tty = process.env.TTY || process.env.SSH_TTY || '';
+  // Fallback: Use TTY + cwd for session grouping
+  const tty = process.env.SSH_TTY || process.env.TTY || '';
+  const cwd = process.env.PWD || process.cwd();
 
-  // Create a session cache file to maintain consistency
-  const cacheFile = path.join(SESSION_CACHE_DIR, `contextuate-session-${ppid}.id`);
+  const keyHash = crypto.createHash('sha256');
+  keyHash.update(`${tty}-${cwd}`);
+  const cacheKey = keyHash.digest('hex').slice(0, 16);
+
+  const cacheFile = path.join(SESSION_CACHE_DIR, `contextuate-session-${cacheKey}.id`);
 
   try {
     if (fs.existsSync(cacheFile)) {
@@ -103,10 +142,8 @@ function getSessionId() {
     // Ignore cache read errors
   }
 
-  // Generate new session ID
-  const hash = crypto.createHash('sha256');
-  hash.update(`${ppid}-${tty}-${Date.now()}`);
-  const sessionId = hash.digest('hex').slice(0, 16);
+  // Generate new session ID (random, not time-based)
+  const sessionId = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
 
   // Cache the session ID
   try {
@@ -116,6 +153,25 @@ function getSessionId() {
   }
 
   return sessionId;
+}
+
+/**
+ * Get parent session ID for subagent events
+ */
+function getParentSessionId(hookPayload) {
+  // For subagent events, the session_id is actually the parent
+  if (hookPayload && (hookPayload.hook_event_name === 'SubagentStart' || hookPayload.hook_event_name === 'SubagentStop')) {
+    if (hookPayload.session_id) {
+      return hookPayload.session_id.replace(/-/g, '').slice(0, 16);
+    }
+  }
+
+  // Check environment for parent session
+  if (process.env.CONTEXTUATE_PARENT_SESSION) {
+    return process.env.CONTEXTUATE_PARENT_SESSION;
+  }
+
+  return undefined;
 }
 
 /**
@@ -240,16 +296,37 @@ function parseTranscript(transcriptPath) {
  */
 function getEventType(hookType, payload) {
   switch (hookType) {
+    // Session lifecycle
+    case 'SessionStart':
+      return 'session_start';
+    case 'SessionEnd':
+    case 'Stop':
+      return 'session_end';
+
+    // Tool use
     case 'PreToolUse':
       return 'tool_call';
     case 'PostToolUse':
       return 'tool_result';
+    case 'PostToolUseFailure':
+      return 'tool_error';
+
+    // Subagent lifecycle
+    case 'SubagentStart':
+      return 'subagent_start';
+    case 'SubagentStop':
+      return 'subagent_stop';
+
+    // Other events
     case 'Notification':
       return 'notification';
-    case 'Stop':
-      return 'session_end';
-    case 'SubagentStop':
-      return 'agent_complete';
+    case 'UserPromptSubmit':
+      return 'user_prompt';
+    case 'PreCompact':
+      return 'pre_compact';
+    case 'PermissionRequest':
+      return 'permission_request';
+
     default:
       return 'message';
   }
@@ -259,7 +336,8 @@ function getEventType(hookType, payload) {
  * Build MonitorEvent from hook payload
  */
 function buildEvent(hookPayload) {
-  const hookType = hookPayload.hook_type || 'Unknown';
+  // Claude uses hook_event_name, not hook_type
+  const hookType = hookPayload.hook_event_name || hookPayload.hook_type || 'Unknown';
   const eventType = getEventType(hookType, hookPayload);
 
   // Build event data
@@ -297,10 +375,24 @@ function buildEvent(hookPayload) {
     };
   }
 
-  if (hookPayload.subagent) {
+  // Extract subagent info from various sources
+  if (hookPayload.agent_type) {
+    // SubagentStart/SubagentStop events have agent_type at top level
+    data.subagent = {
+      type: hookPayload.agent_type,
+      agentId: hookPayload.agent_id || undefined
+    };
+  } else if (hookPayload.subagent) {
     data.subagent = {
       type: hookPayload.subagent.type || 'unknown',
       prompt: hookPayload.subagent.prompt || ''
+    };
+  } else if (hookPayload.tool_name === 'Task' && hookPayload.tool_input) {
+    // For Task tool calls, extract subagent info from tool_input
+    data.subagent = {
+      type: hookPayload.tool_input.subagent_type || 'unknown',
+      prompt: hookPayload.tool_input.prompt || '',
+      description: hookPayload.tool_input.description || ''
     };
   }
 
@@ -329,14 +421,14 @@ function buildEvent(hookPayload) {
     }
   }
 
-  // Get parent session ID from environment if this is a sub-agent
-  const parentSessionId = process.env.CONTEXTUATE_PARENT_SESSION;
+  // Get parent session ID (for subagent events, this comes from the hook payload)
+  const parentSessionId = getParentSessionId(hookPayload);
 
   return {
     id: generateUUID(),
     timestamp: Date.now(),
-    sessionId: getSessionId(),
-    parentSessionId: parentSessionId || undefined,
+    sessionId: getSessionId(hookPayload),
+    parentSessionId: parentSessionId,
     machineId: getMachineId(),
     workingDirectory: hookPayload.cwd || getWorkingDirectory(),
     eventType: eventType,
@@ -500,6 +592,15 @@ async function main() {
 
   // Load configuration
   const config = loadConfig();
+
+  // Debug: Log SubagentStart/SubagentStop payloads to understand the structure
+  if (hookPayload.hook_event_name === 'SubagentStart' || hookPayload.hook_event_name === 'SubagentStop') {
+    const debugPath = '/tmp/subagent-debug.log';
+    const debugEntry = `\n=== ${new Date().toISOString()} - ${hookPayload.hook_event_name} ===\n${JSON.stringify(hookPayload, null, 2)}\n`;
+    try {
+      fs.appendFileSync(debugPath, debugEntry);
+    } catch (e) {}
+  }
 
   // Build the monitor event
   const event = buildEvent(hookPayload);

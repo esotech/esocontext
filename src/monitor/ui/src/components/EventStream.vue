@@ -280,25 +280,25 @@ watch(events, async () => {
           <!-- Tool Input -->
           <div v-if="event.data.toolInput" class="mt-2">
             <div class="text-xs text-monitor-text-secondary mb-1">Input:</div>
-            <pre class="code-block text-xs overflow-x-auto max-h-48">{{ formatJson(event.data.toolInput) }}</pre>
+            <pre class="code-block text-xs overflow-y-auto overflow-x-hidden whitespace-pre-wrap word-wrap-break max-h-48 max-w-full">{{ formatJson(event.data.toolInput) }}</pre>
           </div>
 
           <!-- Tool Output -->
           <div v-if="event.data.toolOutput" class="mt-2">
             <div class="text-xs text-monitor-text-secondary mb-1">Output:</div>
-            <pre class="code-block text-xs overflow-x-auto max-h-48">{{ formatJson(event.data.toolOutput) }}</pre>
+            <pre class="code-block text-xs overflow-y-auto overflow-x-hidden whitespace-pre-wrap word-wrap-break max-h-48 max-w-full">{{ formatJson(event.data.toolOutput) }}</pre>
           </div>
 
           <!-- Message -->
           <div v-if="event.data.message" class="mt-2">
             <div class="text-xs text-monitor-text-secondary mb-1">Message:</div>
-            <pre class="code-block text-xs whitespace-pre-wrap">{{ event.data.message }}</pre>
+            <pre class="code-block text-xs overflow-y-auto overflow-x-hidden whitespace-pre-wrap word-wrap-break max-w-full">{{ event.data.message }}</pre>
           </div>
 
           <!-- Error -->
           <div v-if="event.data.error" class="mt-2">
             <div class="text-xs text-red-400 mb-1">Error:</div>
-            <pre class="code-block text-xs text-red-300">{{ event.data.error.message }}
+            <pre class="code-block text-xs text-red-300 overflow-y-auto overflow-x-hidden whitespace-pre-wrap word-wrap-break max-w-full">{{ event.data.error.message }}
 {{ event.data.error.stack }}</pre>
           </div>
 

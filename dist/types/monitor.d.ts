@@ -7,11 +7,11 @@
 /**
  * Types of events that can be monitored
  */
-export type MonitorEventType = 'session_start' | 'session_end' | 'tool_call' | 'tool_result' | 'message' | 'notification' | 'thinking' | 'error' | 'agent_spawn' | 'agent_complete';
+export type MonitorEventType = 'session_start' | 'session_end' | 'tool_call' | 'tool_result' | 'tool_error' | 'message' | 'notification' | 'thinking' | 'error' | 'agent_spawn' | 'agent_complete' | 'subagent_start' | 'subagent_stop' | 'user_prompt' | 'pre_compact' | 'permission_request';
 /**
  * Claude hook types that trigger events
  */
-export type ClaudeHookType = 'PreToolUse' | 'PostToolUse' | 'Notification' | 'Stop' | 'SubagentStop';
+export type ClaudeHookType = 'SessionStart' | 'SessionEnd' | 'PreToolUse' | 'PostToolUse' | 'PostToolUseFailure' | 'Notification' | 'UserPromptSubmit' | 'Stop' | 'SubagentStart' | 'SubagentStop' | 'PreCompact' | 'PermissionRequest';
 /**
  * Token usage metrics
  */

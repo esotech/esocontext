@@ -75,24 +75,54 @@ function loadConfig() {
 }
 
 /**
- * Generate or retrieve session ID
- * Claude doesn't provide a session ID, so we derive one from:
- * - PID of the parent process
- * - TTY or pseudo-terminal
- * - Start time (cached)
+ * Extract session ID from Claude's transcript path
+ * Transcript paths look like: ~/.claude/projects/{hash}/.claude/transcript_{sessionId}.jsonl
+ * The sessionId part is unique per Claude session
  */
-function getSessionId() {
+function extractSessionFromTranscript(transcriptPath) {
+  if (!transcriptPath) return null;
+
+  // Try to extract session ID from transcript filename
+  // Format: transcript_{sessionId}.jsonl or similar
+  const match = transcriptPath.match(/transcript[_-]?([a-zA-Z0-9-]+)\.jsonl$/);
+  if (match) {
+    // Hash the full path to get a shorter, consistent ID
+    const hash = crypto.createHash('sha256');
+    hash.update(transcriptPath);
+    return hash.digest('hex').slice(0, 16);
+  }
+
+  return null;
+}
+
+/**
+ * Generate or retrieve session ID
+ * Priority:
+ * 1. Claude's session_id from hook payload (best - unique per Claude session)
+ * 2. CLAUDE_SESSION_ID environment variable (if set)
+ * 3. Fallback to TTY+cwd based caching
+ */
+function getSessionId(hookPayload) {
+  // Use Claude's session_id directly if provided (this is the real session ID!)
+  if (hookPayload && hookPayload.session_id) {
+    // Shorten UUID to 16 chars for consistency
+    return hookPayload.session_id.replace(/-/g, '').slice(0, 16);
+  }
+
   // Check for explicit session ID in environment
   if (process.env.CLAUDE_SESSION_ID) {
     return process.env.CLAUDE_SESSION_ID;
   }
 
-  // Generate consistent session ID based on process info
-  const ppid = process.ppid || process.pid;
-  const tty = process.env.TTY || process.env.SSH_TTY || '';
+  // Fallback: Use TTY + cwd for session grouping
+  const tty = process.env.SSH_TTY || process.env.TTY || '';
+  const cwd = process.env.PWD || process.cwd();
 
-  // Create a session cache file to maintain consistency
-  const cacheFile = path.join(SESSION_CACHE_DIR, `contextuate-session-${ppid}.id`);
+  const keyHash = crypto.createHash('sha256');
+  keyHash.update(`${tty}-${cwd}`);
+  const cacheKey = keyHash.digest('hex').slice(0, 16);
+
+  const cacheFile = path.join(SESSION_CACHE_DIR, `contextuate-session-${cacheKey}.id`);
 
   try {
     if (fs.existsSync(cacheFile)) {
@@ -103,10 +133,8 @@ function getSessionId() {
     // Ignore cache read errors
   }
 
-  // Generate new session ID
-  const hash = crypto.createHash('sha256');
-  hash.update(`${ppid}-${tty}-${Date.now()}`);
-  const sessionId = hash.digest('hex').slice(0, 16);
+  // Generate new session ID (random, not time-based)
+  const sessionId = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
 
   // Cache the session ID
   try {
@@ -240,16 +268,37 @@ function parseTranscript(transcriptPath) {
  */
 function getEventType(hookType, payload) {
   switch (hookType) {
+    // Session lifecycle
+    case 'SessionStart':
+      return 'session_start';
+    case 'SessionEnd':
+    case 'Stop':
+      return 'session_end';
+
+    // Tool use
     case 'PreToolUse':
       return 'tool_call';
     case 'PostToolUse':
       return 'tool_result';
+    case 'PostToolUseFailure':
+      return 'tool_error';
+
+    // Subagent lifecycle
+    case 'SubagentStart':
+      return 'subagent_start';
+    case 'SubagentStop':
+      return 'subagent_stop';
+
+    // Other events
     case 'Notification':
       return 'notification';
-    case 'Stop':
-      return 'session_end';
-    case 'SubagentStop':
-      return 'agent_complete';
+    case 'UserPromptSubmit':
+      return 'user_prompt';
+    case 'PreCompact':
+      return 'pre_compact';
+    case 'PermissionRequest':
+      return 'permission_request';
+
     default:
       return 'message';
   }
@@ -259,7 +308,8 @@ function getEventType(hookType, payload) {
  * Build MonitorEvent from hook payload
  */
 function buildEvent(hookPayload) {
-  const hookType = hookPayload.hook_type || 'Unknown';
+  // Claude uses hook_event_name, not hook_type
+  const hookType = hookPayload.hook_event_name || hookPayload.hook_type || 'Unknown';
   const eventType = getEventType(hookType, hookPayload);
 
   // Build event data
@@ -297,10 +347,18 @@ function buildEvent(hookPayload) {
     };
   }
 
+  // Extract subagent info - check both hookPayload.subagent and Task tool input
   if (hookPayload.subagent) {
     data.subagent = {
       type: hookPayload.subagent.type || 'unknown',
       prompt: hookPayload.subagent.prompt || ''
+    };
+  } else if (hookPayload.tool_name === 'Task' && hookPayload.tool_input) {
+    // For Task tool calls, extract subagent info from tool_input
+    data.subagent = {
+      type: hookPayload.tool_input.subagent_type || 'unknown',
+      prompt: hookPayload.tool_input.prompt || '',
+      description: hookPayload.tool_input.description || ''
     };
   }
 
@@ -335,7 +393,7 @@ function buildEvent(hookPayload) {
   return {
     id: generateUUID(),
     timestamp: Date.now(),
-    sessionId: getSessionId(),
+    sessionId: getSessionId(hookPayload),
     parentSessionId: parentSessionId || undefined,
     machineId: getMachineId(),
     workingDirectory: hookPayload.cwd || getWorkingDirectory(),

@@ -17,22 +17,35 @@ export type MonitorEventType =
   | 'session_end'
   | 'tool_call'
   | 'tool_result'
+  | 'tool_error'
   | 'message'
   | 'notification'
   | 'thinking'
   | 'error'
   | 'agent_spawn'
-  | 'agent_complete';
+  | 'agent_complete'
+  | 'subagent_start'
+  | 'subagent_stop'
+  | 'user_prompt'
+  | 'pre_compact'
+  | 'permission_request';
 
 /**
  * Claude hook types that trigger events
  */
 export type ClaudeHookType =
+  | 'SessionStart'
+  | 'SessionEnd'
   | 'PreToolUse'
   | 'PostToolUse'
+  | 'PostToolUseFailure'
   | 'Notification'
+  | 'UserPromptSubmit'
   | 'Stop'
-  | 'SubagentStop';
+  | 'SubagentStart'
+  | 'SubagentStop'
+  | 'PreCompact'
+  | 'PermissionRequest';
 
 /**
  * Token usage metrics

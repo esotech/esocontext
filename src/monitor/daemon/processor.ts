@@ -74,17 +74,41 @@ export class EventProcessor {
     }
   }
 
+  // Track processed event IDs to prevent duplicates (socket + file watcher)
+  private processedEventIds: Set<string> = new Set();
+
   /**
    * Process a single event
+   * @param event The event to process
+   * @param filepath The source file path (null if from socket)
    */
-  async processEvent(event: MonitorEvent, filepath: string): Promise<void> {
+  async processEvent(event: MonitorEvent, filepath: string | null): Promise<void> {
+    // Deduplicate events (can arrive via socket AND file watcher)
+    if (this.processedEventIds.has(event.id)) {
+      // Already processed via socket, just move the file
+      if (filepath) {
+        await this.moveToProcessed(filepath);
+      }
+      return;
+    }
+    this.processedEventIds.add(event.id);
+
+    // Limit memory usage by keeping only recent event IDs
+    if (this.processedEventIds.size > 10000) {
+      const arr = Array.from(this.processedEventIds);
+      this.processedEventIds = new Set(arr.slice(-5000));
+    }
+
     const originalSessionId = event.sessionId;
 
     // Handle subagent lifecycle
     if (event.hookType === 'PreToolUse' && event.data?.toolName === 'Task') {
-      this.startSubagentContext(event);
-    } else if (event.hookType === 'SubagentStop') {
-      this.endSubagentContext(event);
+      await this.startSubagentContext(event);
+    } else if (event.eventType === 'subagent_start') {
+      // Handle SubagentStart event for proper hierarchy
+      await this.handleSubagentStart(event);
+    } else if (event.hookType === 'SubagentStop' || event.eventType === 'subagent_stop') {
+      await this.endSubagentContext(event);
     } else {
       // Route to active subagent if exists
       const activeStack = this.state.getActiveSubagentStack(originalSessionId);
@@ -106,11 +130,38 @@ export class EventProcessor {
     // Update state checkpoint
     this.state.lastProcessedTimestamp = event.timestamp;
 
-    // Move raw file to processed
-    await this.moveToProcessed(filepath);
+    // Move raw file to processed (only if from file watcher)
+    if (filepath) {
+      await this.moveToProcessed(filepath);
+    }
 
     // Notify UI server
     await this.notifier.notify(event);
+  }
+
+  /**
+   * Handle SubagentStart event - create child session immediately
+   */
+  private async handleSubagentStart(event: MonitorEvent): Promise<void> {
+    // SubagentStart should have its own session_id from Claude
+    // Create the child session with parent relationship
+    const session: SessionMeta = {
+      sessionId: event.sessionId,
+      parentSessionId: event.parentSessionId || undefined,
+      machineId: event.machineId,
+      workingDirectory: event.workingDirectory,
+      startTime: event.timestamp,
+      status: 'active',
+      childSessionIds: [],
+      tokenUsage: { totalInput: 0, totalOutput: 0 },
+      agentType: event.data?.subagent?.type || undefined,
+    };
+
+    this.sessions.set(session.sessionId, session);
+    await this.persistSession(session);
+    await this.notifier.notifySessionUpdate(session);
+
+    console.log(`[Processor] SubagentStart: ${session.sessionId} (type: ${session.agentType}, parent: ${session.parentSessionId})`);
   }
 
   /**
@@ -128,7 +179,7 @@ export class EventProcessor {
   /**
    * Start tracking a subagent context when Task tool is called
    */
-  private startSubagentContext(event: MonitorEvent): void {
+  private async startSubagentContext(event: MonitorEvent): Promise<void> {
     const virtualId = this.generateVirtualSessionId();
     const agentType = this.extractAgentType(event);
 
@@ -140,13 +191,41 @@ export class EventProcessor {
     };
 
     this.state.pushActiveSubagent(event.sessionId, subagent);
-    console.log(`[Processor] Started subagent context: ${virtualId} (type: ${agentType || 'unknown'})`);
+
+    // Create the virtual session immediately with agentType
+    const session: SessionMeta = {
+      sessionId: virtualId,
+      machineId: event.machineId,
+      workingDirectory: event.workingDirectory,
+      startTime: event.timestamp,
+      status: 'active',
+      parentSessionId: event.sessionId,
+      childSessionIds: [],
+      tokenUsage: { totalInput: 0, totalOutput: 0 },
+      isUserInitiated: false,
+      isPinned: false,
+      agentType: agentType,
+    };
+
+    this.sessions.set(virtualId, session);
+    await this.persistSession(session);
+
+    // Add to parent's children
+    const parent = this.sessions.get(event.sessionId);
+    if (parent && !parent.childSessionIds.includes(virtualId)) {
+      parent.childSessionIds.push(virtualId);
+      await this.persistSession(parent);
+      await this.notifier.notifySessionUpdate(parent);
+    }
+
+    await this.notifier.notifySessionUpdate(session);
+    console.log(`[Processor] Started subagent: ${virtualId} (type: ${agentType || 'unknown'}, parent: ${event.sessionId})`);
   }
 
   /**
    * End the current subagent context
    */
-  private endSubagentContext(event: MonitorEvent): void {
+  private async endSubagentContext(event: MonitorEvent): Promise<void> {
     const subagent = this.state.popActiveSubagent(event.sessionId);
     if (subagent) {
       // Mark virtual session as completed
@@ -154,9 +233,10 @@ export class EventProcessor {
       if (session) {
         session.status = 'completed';
         session.endTime = event.timestamp;
-        this.persistSession(session);
+        await this.persistSession(session);
+        await this.notifier.notifySessionUpdate(session);
       }
-      console.log(`[Processor] Ended subagent context: ${subagent.virtualSessionId}`);
+      console.log(`[Processor] Ended subagent: ${subagent.virtualSessionId} (type: ${subagent.agentType || 'unknown'})`);
     }
   }
 
@@ -210,7 +290,7 @@ export class EventProcessor {
         childSessionIds: [],
         tokenUsage: { totalInput: 0, totalOutput: 0 },
         isUserInitiated,
-        isPinned: isUserInitiated,
+        isPinned: false, // Manual pinning only
       };
 
       // Add to parent's children

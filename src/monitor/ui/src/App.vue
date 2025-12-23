@@ -3,7 +3,6 @@ import { onMounted, onUnmounted, computed } from 'vue';
 import { useMonitorStore } from './stores/monitor';
 import SessionList from './components/SessionList.vue';
 import EventStream from './components/EventStream.vue';
-import AgentTree from './components/AgentTree.vue';
 import ToolTimeline from './components/ToolTimeline.vue';
 import TokenMetrics from './components/TokenMetrics.vue';
 import ModeIndicator from './components/ModeIndicator.vue';
@@ -109,27 +108,14 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Right Sidebar - Details -->
+      <!-- Right Sidebar - Token Metrics -->
       <aside class="w-80 border-l border-slate-700 flex flex-col">
-        <!-- Agent Tree -->
-        <div class="h-1/2 border-b border-slate-700">
-          <div class="p-3 border-b border-slate-700">
-            <h2 class="text-sm font-medium text-monitor-text-secondary uppercase tracking-wide">
-              Agent Hierarchy
-            </h2>
-          </div>
-          <AgentTree class="overflow-y-auto h-[calc(100%-44px)]" />
+        <div class="p-3 border-b border-slate-700">
+          <h2 class="text-sm font-medium text-monitor-text-secondary uppercase tracking-wide">
+            Token Usage
+          </h2>
         </div>
-
-        <!-- Token Metrics -->
-        <div class="h-1/2">
-          <div class="p-3 border-b border-slate-700">
-            <h2 class="text-sm font-medium text-monitor-text-secondary uppercase tracking-wide">
-              Token Usage
-            </h2>
-          </div>
-          <TokenMetrics class="overflow-y-auto h-[calc(100%-44px)]" />
-        </div>
+        <TokenMetrics class="flex-1 overflow-y-auto" />
       </aside>
     </main>
   </div>

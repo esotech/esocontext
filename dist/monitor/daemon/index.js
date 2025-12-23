@@ -152,9 +152,12 @@ class MonitorDaemon {
                     if (line.trim()) {
                         try {
                             const message = JSON.parse(line);
-                            // Hook notifications just log (event already in raw/)
-                            if (message.id && message.hookType) {
-                                console.log(`[Daemon] Hook notification: ${message.id}`);
+                            // Process hook events immediately for instant updates
+                            if (message.id && message.eventType) {
+                                // This is an event from a hook - process it instantly
+                                this.processor.processEvent(message, null).catch(err => {
+                                    console.error('[Daemon] Error processing socket event:', err);
+                                });
                             }
                         }
                         catch (err) {

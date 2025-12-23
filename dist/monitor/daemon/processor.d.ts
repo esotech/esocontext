@@ -20,10 +20,17 @@ export declare class EventProcessor {
      * Load existing sessions from disk
      */
     loadSessions(): Promise<void>;
+    private processedEventIds;
     /**
      * Process a single event
+     * @param event The event to process
+     * @param filepath The source file path (null if from socket)
      */
-    processEvent(event: MonitorEvent, filepath: string): Promise<void>;
+    processEvent(event: MonitorEvent, filepath: string | null): Promise<void>;
+    /**
+     * Handle SubagentStart event - create child session immediately
+     */
+    private handleSubagentStart;
     /**
      * Generate a short unique ID for virtual sessions
      */

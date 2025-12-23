@@ -350,7 +350,19 @@ async function monitorInitCommand() {
     }
 }
 /**
+ * Check if a hook command path refers to a contextuate emit-event hook
+ */
+function isContextuateHook(command) {
+    // Normalize the path and check for contextuate emit-event patterns
+    const normalized = command.replace(/^~/, os_1.default.homedir());
+    return normalized.includes('contextuate') && normalized.includes('emit-event');
+}
+/**
  * Update Claude settings with hook registrations
+ * - Detects existing contextuate hooks (any path format)
+ * - Updates them to use the canonical path
+ * - Removes duplicates
+ * - Adds hooks for any missing hook types
  */
 async function updateClaudeHookSettings(hookPath, settingsFile) {
     try {
@@ -366,28 +378,56 @@ async function updateClaudeHookSettings(hookPath, settingsFile) {
                 // Start fresh if parsing fails
             }
         }
-        // Define hooks using new matcher-based format
-        // Format: { "matcher": "<pattern>", "hooks": [{"type": "command", "command": "..."}] }
-        // Empty string matcher = match all
-        const hookEntry = {
-            matcher: '',
-            hooks: [{ type: 'command', command: hookPath }]
-        };
-        const hookTypes = ['PreToolUse', 'PostToolUse', 'Notification', 'Stop', 'SubagentStop'];
+        // All hook types we want to register
+        const hookTypes = [
+            'SessionStart',
+            'SessionEnd',
+            'PreToolUse',
+            'PostToolUse',
+            'Notification',
+            'Stop',
+            'SubagentStart',
+            'SubagentStop'
+        ];
         // Initialize hooks object if needed
         if (!settings.hooks || typeof settings.hooks !== 'object') {
             settings.hooks = {};
         }
         const hooks = settings.hooks;
-        // Add our hook to each hook type
+        // Process each hook type
         for (const hookType of hookTypes) {
             if (!Array.isArray(hooks[hookType])) {
                 hooks[hookType] = [];
             }
-            // Check if our hook is already registered (look inside the hooks array)
-            const existing = hooks[hookType].find((entry) => entry.hooks?.some((h) => h.type === 'command' && h.command === hookPath));
-            if (!existing) {
-                hooks[hookType].push(hookEntry);
+            // Filter out any existing contextuate hooks and other duplicates
+            const filteredEntries = [];
+            let hasContextuateHook = false;
+            for (const entry of hooks[hookType]) {
+                if (!entry.hooks || !Array.isArray(entry.hooks)) {
+                    filteredEntries.push(entry);
+                    continue;
+                }
+                // Filter hooks within this entry
+                const nonContextuateHooks = entry.hooks.filter((h) => {
+                    if (h.type === 'command' && isContextuateHook(h.command)) {
+                        hasContextuateHook = true;
+                        return false; // Remove old contextuate hooks
+                    }
+                    return true;
+                });
+                // Keep entry if it has other hooks
+                if (nonContextuateHooks.length > 0) {
+                    filteredEntries.push({ ...entry, hooks: nonContextuateHooks });
+                }
+            }
+            // Add our canonical hook entry
+            filteredEntries.push({
+                matcher: '',
+                hooks: [{ type: 'command', command: hookPath }]
+            });
+            hooks[hookType] = filteredEntries;
+            if (hasContextuateHook) {
+                console.log(chalk_1.default.blue(`[INFO] Updated ${hookType} hook to canonical path`));
             }
         }
         // Save settings
@@ -423,13 +463,8 @@ async function monitorStartCommand(options) {
     if (options.wsPort) {
         config.server.wsPort = options.wsPort;
     }
-    // Auto-start daemon if not running
-    const pid = await getDaemonPid();
-    if (!pid || !isProcessRunning(pid)) {
-        console.log(chalk_1.default.blue('[INFO] Starting daemon...'));
-        await monitorDaemonStartCommand({ detach: true });
-        console.log('');
-    }
+    // Auto-start daemon if not running or not responding
+    await ensureDaemonRunning(config);
     console.log(chalk_1.default.blue('[INFO] Starting Contextuate Monitor...'));
     console.log('');
     try {
@@ -593,6 +628,37 @@ function isProcessRunning(pid) {
     catch {
         return false;
     }
+}
+/**
+ * Ensure daemon is running
+ * - If not running, start it
+ * - Clean up stale PID files if process not running
+ */
+async function ensureDaemonRunning(config) {
+    const pid = await getDaemonPid();
+    const socketPath = '/tmp/contextuate-daemon.sock';
+    if (pid && isProcessRunning(pid)) {
+        // Daemon is already running
+        console.log(chalk_1.default.green(`[OK] Daemon is running (PID: ${pid})`));
+        return;
+    }
+    if (pid) {
+        // PID file exists but process not running - clean up stale files
+        console.log(chalk_1.default.blue('[INFO] Cleaning up stale daemon files...'));
+        await fs_extra_1.default.remove(PATHS.daemonPidFile);
+        try {
+            await fs_extra_1.default.remove(socketPath);
+        }
+        catch {
+            // Ignore
+        }
+    }
+    // Start the daemon
+    console.log(chalk_1.default.blue('[INFO] Starting daemon...'));
+    await monitorDaemonStartCommand({ detach: true });
+    // Brief wait for daemon to initialize socket
+    await new Promise(r => setTimeout(r, 1000));
+    console.log('');
 }
 // =============================================================================
 // Daemon Management Commands

@@ -11,12 +11,19 @@ const autoScroll = computed(() => store.autoScroll);
 
 const expandedEvents = ref<Set<string>>(new Set());
 
-function toggleExpand(eventId: string) {
-  if (expandedEvents.value.has(eventId)) {
-    expandedEvents.value.delete(eventId);
+function toggleExpand(event: MonitorEvent) {
+  if (expandedEvents.value.has(event.id)) {
+    expandedEvents.value.delete(event.id);
   } else {
-    expandedEvents.value.add(eventId);
+    expandedEvents.value.add(event.id);
+    // Request full details if not already loaded
+    store.requestEventDetail(event.sessionId, event.id);
   }
+}
+
+// Helper to get full event with details
+function getFullEvent(eventId: string): MonitorEvent | undefined {
+  return store.getEventDetail(eventId) || events.value.find(e => e.id === eventId);
 }
 
 function formatTime(timestamp: number): string {
@@ -43,6 +50,8 @@ function getEventIcon(eventType: string): string {
     error: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
     agent_spawn: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
     agent_complete: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z',
+    subagent_start: 'M13 10V3L4 14h7v7l9-11h-7z',
+    subagent_stop: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
   };
   return icons[eventType] || icons.message;
 }
@@ -62,6 +71,29 @@ function formatJson(obj: unknown): string {
   } catch {
     return String(obj);
   }
+}
+
+function getAgentName(event: MonitorEvent): string | null {
+  // Direct subagent info from event data
+  if (event.data.subagent?.type) {
+    return event.data.subagent.type;
+  }
+
+  // For Task tool calls, extract from toolInput
+  if (event.data.toolName === 'Task') {
+    const input = event.data.toolInput as Record<string, unknown> | undefined;
+    if (input?.subagent_type) {
+      return String(input.subagent_type);
+    }
+  }
+
+  // Fallback: try to get from session metadata
+  const session = store.sessions.find(s => s.sessionId === event.sessionId);
+  if (session?.agentType) {
+    return session.agentType;
+  }
+
+  return null;
 }
 
 function getToolDetail(event: MonitorEvent): string {
@@ -149,8 +181,28 @@ function getEventSummary(event: MonitorEvent): string {
       return `Spawned ${event.data.subagent?.type || 'sub-agent'}`;
     case 'agent_complete':
       return 'Sub-agent completed';
+    case 'subagent_start':
+      return `${event.data.subagent?.type || 'Subagent'} started`;
+    case 'subagent_stop':
+      return `${event.data.subagent?.type || 'Subagent'} completed`;
     default:
       return event.eventType;
+  }
+}
+
+function navigateToSpawnedSession(event: MonitorEvent) {
+  const subagentType = event.data.subagent?.type;
+  const eventTime = event.timestamp;
+
+  // Find child session spawned by this Task event
+  const childSession = store.sessions.find(s =>
+    s.parentSessionId === event.sessionId &&
+    s.agentType === subagentType &&
+    Math.abs(s.startTime - eventTime) < 5000
+  );
+
+  if (childSession) {
+    store.selectSession(childSession.sessionId);
   }
 }
 
@@ -208,7 +260,7 @@ watch(events, async () => {
         <!-- Event Header (always visible) -->
         <div
           class="flex items-center px-3 py-2 cursor-pointer"
-          @click="toggleExpand(event.id)"
+          @click="toggleExpand(event)"
         >
           <!-- Timestamp -->
           <span class="text-xs text-monitor-text-muted font-mono w-24 flex-shrink-0">
@@ -237,6 +289,14 @@ watch(events, async () => {
             :class="`event-${event.eventType} bg-slate-800`"
           >
             {{ event.eventType }}
+          </span>
+
+          <!-- Agent Name Badge -->
+          <span
+            v-if="getAgentName(event)"
+            class="px-1.5 py-0.5 text-xs rounded bg-purple-500/20 text-purple-400 mr-2 flex-shrink-0"
+          >
+            {{ getAgentName(event) }}
           </span>
 
           <!-- Tool Name (if applicable) -->
@@ -310,6 +370,49 @@ watch(events, async () => {
             <span v-if="event.data.tokenUsage.cacheRead" class="text-purple-400">
               {{ event.data.tokenUsage.cacheRead }} cache read
             </span>
+          </div>
+
+          <!-- Loading Indicator -->
+          <div v-if="store.loadingDetails.has(event.id)" class="mt-3 flex items-center text-xs text-monitor-text-secondary">
+            <svg class="animate-spin h-3 w-3 mr-2" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading full event details...
+          </div>
+
+          <!-- Thinking Blocks Section -->
+          <div v-if="getFullEvent(event.id)?.data?.thinkingBlocks?.length" class="mt-3">
+            <div class="text-xs text-monitor-text-secondary mb-1 flex items-center">
+              <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+              </svg>
+              Chain of Thought ({{ getFullEvent(event.id)?.data?.thinkingBlocks?.length || 0 }})
+            </div>
+            <div class="space-y-2 max-h-64 overflow-y-auto">
+              <div
+                v-for="(block, idx) in getFullEvent(event.id)?.data?.thinkingBlocks || []"
+                :key="idx"
+                class="code-block text-xs bg-purple-900/20 border-l-2 border-purple-500 p-2"
+              >
+                <pre class="whitespace-pre-wrap text-purple-200">{{ block.content }}</pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Spawned Subagent Link for Task tool -->
+          <div v-if="event.data.toolName === 'Task' && event.data.subagent" class="mt-3">
+            <button
+              @click="navigateToSpawnedSession(event)"
+              class="flex items-center text-xs text-purple-400 hover:text-cyan-400 transition-colors"
+            >
+              <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+              View {{ event.data.subagent.type || 'subagent' }} session →
+            </button>
           </div>
         </div>
       </div>

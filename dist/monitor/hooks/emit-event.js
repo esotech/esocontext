@@ -98,11 +98,20 @@ function extractSessionFromTranscript(transcriptPath) {
 /**
  * Generate or retrieve session ID
  * Priority:
- * 1. Claude's session_id from hook payload (best - unique per Claude session)
- * 2. CLAUDE_SESSION_ID environment variable (if set)
- * 3. Fallback to TTY+cwd based caching
+ * 1. For SubagentStart/SubagentStop: use agent_id (subagent's own ID)
+ * 2. Claude's session_id from hook payload (best - unique per Claude session)
+ * 3. CLAUDE_SESSION_ID environment variable (if set)
+ * 4. Fallback to TTY+cwd based caching
  */
 function getSessionId(hookPayload) {
+  // For subagent events, use agent_id as the session ID
+  // The session_id in these events is actually the PARENT session
+  if (hookPayload && (hookPayload.hook_event_name === 'SubagentStart' || hookPayload.hook_event_name === 'SubagentStop')) {
+    if (hookPayload.agent_id) {
+      return hookPayload.agent_id;
+    }
+  }
+
   // Use Claude's session_id directly if provided (this is the real session ID!)
   if (hookPayload && hookPayload.session_id) {
     // Shorten UUID to 16 chars for consistency
@@ -144,6 +153,25 @@ function getSessionId(hookPayload) {
   }
 
   return sessionId;
+}
+
+/**
+ * Get parent session ID for subagent events
+ */
+function getParentSessionId(hookPayload) {
+  // For subagent events, the session_id is actually the parent
+  if (hookPayload && (hookPayload.hook_event_name === 'SubagentStart' || hookPayload.hook_event_name === 'SubagentStop')) {
+    if (hookPayload.session_id) {
+      return hookPayload.session_id.replace(/-/g, '').slice(0, 16);
+    }
+  }
+
+  // Check environment for parent session
+  if (process.env.CONTEXTUATE_PARENT_SESSION) {
+    return process.env.CONTEXTUATE_PARENT_SESSION;
+  }
+
+  return undefined;
 }
 
 /**
@@ -347,16 +375,22 @@ function buildEvent(hookPayload) {
     };
   }
 
-  // Extract subagent info - check both hookPayload.subagent and Task tool input
-  if (hookPayload.subagent) {
+  // Extract subagent info from various sources
+  if (hookPayload.agent_type) {
+    // SubagentStart/SubagentStop events have agent_type at top level
     data.subagent = {
-      type: hookPayload.subagent.type || 'unknown',
+      type: hookPayload.agent_type.toLowerCase(),
+      agentId: hookPayload.agent_id || undefined
+    };
+  } else if (hookPayload.subagent) {
+    data.subagent = {
+      type: (hookPayload.subagent.type || 'unknown').toLowerCase(),
       prompt: hookPayload.subagent.prompt || ''
     };
   } else if (hookPayload.tool_name === 'Task' && hookPayload.tool_input) {
     // For Task tool calls, extract subagent info from tool_input
     data.subagent = {
-      type: hookPayload.tool_input.subagent_type || 'unknown',
+      type: (hookPayload.tool_input.subagent_type || 'unknown').toLowerCase(),
       prompt: hookPayload.tool_input.prompt || '',
       description: hookPayload.tool_input.description || ''
     };
@@ -387,14 +421,14 @@ function buildEvent(hookPayload) {
     }
   }
 
-  // Get parent session ID from environment if this is a sub-agent
-  const parentSessionId = process.env.CONTEXTUATE_PARENT_SESSION;
+  // Get parent session ID (for subagent events, this comes from the hook payload)
+  const parentSessionId = getParentSessionId(hookPayload);
 
   return {
     id: generateUUID(),
     timestamp: Date.now(),
     sessionId: getSessionId(hookPayload),
-    parentSessionId: parentSessionId || undefined,
+    parentSessionId: parentSessionId,
     machineId: getMachineId(),
     workingDirectory: hookPayload.cwd || getWorkingDirectory(),
     eventType: eventType,
@@ -558,6 +592,15 @@ async function main() {
 
   // Load configuration
   const config = loadConfig();
+
+  // Debug: Log SubagentStart/SubagentStop payloads to understand the structure
+  if (hookPayload.hook_event_name === 'SubagentStart' || hookPayload.hook_event_name === 'SubagentStop') {
+    const debugPath = '/tmp/subagent-debug.log';
+    const debugEntry = `\n=== ${new Date().toISOString()} - ${hookPayload.hook_event_name} ===\n${JSON.stringify(hookPayload, null, 2)}\n`;
+    try {
+      fs.appendFileSync(debugPath, debugEntry);
+    } catch (e) {}
+  }
 
   // Build the monitor event
   const event = buildEvent(hookPayload);

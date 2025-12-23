@@ -116,6 +116,34 @@ export class FileStore implements PersistenceStore {
   }
 
   /**
+   * Get a single event by ID
+   */
+  async getEventById(sessionId: string, eventId: string): Promise<MonitorEvent | null> {
+    const eventsFile = path.join(this.sessionsDir, sessionId, 'events.jsonl');
+
+    if (!fs.existsSync(eventsFile)) {
+      return null;
+    }
+
+    const content = await fs.promises.readFile(eventsFile, 'utf8');
+    const lines = content.split('\n');
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const event: MonitorEvent = JSON.parse(line);
+        if (event.id === eventId) {
+          return event;
+        }
+      } catch (err) {
+        // Skip malformed lines
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Save session metadata
    */
   async saveSession(session: SessionMeta): Promise<void> {

@@ -32,6 +32,8 @@ export const useMonitorStore = defineStore('monitor', () => {
   const showInactiveOnly = ref<boolean>(false);
   const ctrlPressed = ref<boolean>(false);
   const hiddenSessionIds = ref<Set<string>>(new Set());
+  const eventDetails = ref<Map<string, MonitorEvent>>(new Map());
+  const loadingDetails = ref<Set<string>>(new Set());
 
   // Filter state
   const filters = ref<FilterState>({
@@ -120,12 +122,19 @@ export const useMonitorStore = defineStore('monitor', () => {
       filteredSessions = filteredSessions.filter(s => s.status !== 'active');
     }
 
+    // Build a set of all session IDs for quick lookup
+    const sessionIds = new Set(filteredSessions.map(s => s.sessionId));
+
     // Build parent-child relationships
-    const rootSessions = filteredSessions.filter(s => !s.parentSessionId);
+    // A session is a "root" if it has no parent OR its parent doesn't exist in our data (orphaned)
+    const rootSessions = filteredSessions.filter(s =>
+      !s.parentSessionId || !sessionIds.has(s.parentSessionId)
+    );
     const childMap = new Map<string, SessionMeta[]>();
 
     filteredSessions.forEach(s => {
-      if (s.parentSessionId) {
+      // Only add to childMap if parent exists in our session list
+      if (s.parentSessionId && sessionIds.has(s.parentSessionId)) {
         const children = childMap.get(s.parentSessionId) || [];
         children.push(s);
         childMap.set(s.parentSessionId, children);
@@ -168,13 +177,12 @@ export const useMonitorStore = defineStore('monitor', () => {
       cacheWrite: 0,
     };
 
-    events.value.forEach(e => {
-      if (e.data.tokenUsage) {
-        totals.input += e.data.tokenUsage.input || 0;
-        totals.output += e.data.tokenUsage.output || 0;
-        totals.cacheRead += e.data.tokenUsage.cacheRead || 0;
-        totals.cacheWrite += e.data.tokenUsage.cacheWrite || 0;
-      }
+    sessions.value.forEach(session => {
+      totals.input += session.tokenUsage?.totalInput || 0;
+      totals.output += session.tokenUsage?.totalOutput || 0;
+      totals.cacheRead += session.tokenUsage?.totalCacheRead || 0;
+      // totalCacheCreation maps to cacheWrite for display
+      totals.cacheWrite += session.tokenUsage?.totalCacheCreation || 0;
     });
 
     return totals;
@@ -277,6 +285,11 @@ export const useMonitorStore = defineStore('monitor', () => {
         const existingEventIds = new Set(events.value.map(e => e.id));
         const loadedEvents = message.events.filter(e => !existingEventIds.has(e.id));
         events.value = [...events.value, ...loadedEvents].sort((a, b) => a.timestamp - b.timestamp);
+        break;
+
+      case 'event_detail':
+        eventDetails.value.set(message.event.id, message.event);
+        loadingDetails.value.delete(message.event.id);
         break;
 
       case 'sessions_updated':
@@ -404,6 +417,18 @@ export const useMonitorStore = defineStore('monitor', () => {
     draggedSessionId.value = sessionId;
   }
 
+  function requestEventDetail(sessionId: string, eventId: string) {
+    if (eventDetails.value.has(eventId)) return; // Already loaded
+    if (loadingDetails.value.has(eventId)) return; // Already loading
+
+    loadingDetails.value.add(eventId);
+    send({ type: 'get_event_detail', sessionId, eventId });
+  }
+
+  function getEventDetail(eventId: string): MonitorEvent | undefined {
+    return eventDetails.value.get(eventId);
+  }
+
   return {
     // State
     connectionStatus,
@@ -418,6 +443,8 @@ export const useMonitorStore = defineStore('monitor', () => {
     ctrlPressed,
     hiddenSessionIds,
     draggedSessionId,
+    eventDetails,
+    loadingDetails,
 
     // Computed
     selectedSession,
@@ -450,5 +477,7 @@ export const useMonitorStore = defineStore('monitor', () => {
     setUserInitiated,
     renameSession,
     setDraggedSession,
+    requestEventDetail,
+    getEventDetail,
   };
 });

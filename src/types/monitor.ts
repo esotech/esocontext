@@ -298,6 +298,7 @@ export type ClientMessage =
   | { type: 'get_sessions' }
   | { type: 'get_events'; sessionId: string; limit?: number; before?: number }
   | { type: 'get_all_recent_events'; limit?: number }
+  | { type: 'get_event_detail'; eventId: string; sessionId: string }
   | { type: 'send_input'; sessionId: string; input: string }
   | { type: 'hide_session'; sessionId: string }
   | { type: 'unhide_session'; sessionId: string }
@@ -320,6 +321,7 @@ export type ServerMessage =
   | { type: 'sessions_updated'; sessions: SessionMeta[] }
   | { type: 'events'; sessionId: string; events: MonitorEvent[] }
   | { type: 'all_events'; events: MonitorEvent[] }
+  | { type: 'event_detail'; event: MonitorEvent }
   | { type: 'error'; message: string };
 
 // =============================================================================
@@ -387,6 +389,11 @@ export interface PersistenceStore {
     before?: number;
     after?: number;
   }): Promise<MonitorEvent[]>;
+
+  /**
+   * Get a single event by ID
+   */
+  getEventById(sessionId: string, eventId: string): Promise<MonitorEvent | null>;
 
   /**
    * Get all recent events across all sessions

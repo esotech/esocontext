@@ -35,6 +35,10 @@ export declare class FileStore implements PersistenceStore {
         after?: number;
     }): Promise<MonitorEvent[]>;
     /**
+     * Get a single event by ID
+     */
+    getEventById(sessionId: string, eventId: string): Promise<MonitorEvent | null>;
+    /**
      * Save session metadata
      */
     saveSession(session: SessionMeta): Promise<void>;

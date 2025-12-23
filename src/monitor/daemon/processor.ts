@@ -154,7 +154,7 @@ export class EventProcessor {
       status: 'active',
       childSessionIds: [],
       tokenUsage: { totalInput: 0, totalOutput: 0 },
-      agentType: event.data?.subagent?.type || undefined,
+      agentType: event.data?.subagent?.type?.toLowerCase() || undefined,
     };
 
     this.sessions.set(session.sessionId, session);
@@ -186,7 +186,7 @@ export class EventProcessor {
     const subagent: ActiveSubagent = {
       virtualSessionId: virtualId,
       parentSessionId: event.sessionId,
-      agentType,
+      agentType: agentType?.toLowerCase(),
       startTime: event.timestamp,
     };
 
@@ -204,7 +204,7 @@ export class EventProcessor {
       tokenUsage: { totalInput: 0, totalOutput: 0 },
       isUserInitiated: false,
       isPinned: false,
-      agentType: agentType,
+      agentType: agentType?.toLowerCase(),
     };
 
     this.sessions.set(virtualId, session);
@@ -245,7 +245,8 @@ export class EventProcessor {
    */
   private extractAgentType(event: MonitorEvent): string | undefined {
     const toolInput = event.data?.toolInput as any;
-    return toolInput?.subagent_type || toolInput?.agentType;
+    const type = toolInput?.subagent_type || toolInput?.agentType;
+    return type ? type.toLowerCase() : undefined;
   }
 
   /**

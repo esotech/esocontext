@@ -150,7 +150,7 @@ class EventProcessor {
             status: 'active',
             childSessionIds: [],
             tokenUsage: { totalInput: 0, totalOutput: 0 },
-            agentType: event.data?.subagent?.type || undefined,
+            agentType: event.data?.subagent?.type?.toLowerCase() || undefined,
         };
         this.sessions.set(session.sessionId, session);
         await this.persistSession(session);
@@ -177,7 +177,7 @@ class EventProcessor {
         const subagent = {
             virtualSessionId: virtualId,
             parentSessionId: event.sessionId,
-            agentType,
+            agentType: agentType?.toLowerCase(),
             startTime: event.timestamp,
         };
         this.state.pushActiveSubagent(event.sessionId, subagent);
@@ -193,7 +193,7 @@ class EventProcessor {
             tokenUsage: { totalInput: 0, totalOutput: 0 },
             isUserInitiated: false,
             isPinned: false,
-            agentType: agentType,
+            agentType: agentType?.toLowerCase(),
         };
         this.sessions.set(virtualId, session);
         await this.persistSession(session);
@@ -229,7 +229,8 @@ class EventProcessor {
      */
     extractAgentType(event) {
         const toolInput = event.data?.toolInput;
-        return toolInput?.subagent_type || toolInput?.agentType;
+        const type = toolInput?.subagent_type || toolInput?.agentType;
+        return type ? type.toLowerCase() : undefined;
     }
     /**
      * Track potential sub-agent spawns from Task tool calls

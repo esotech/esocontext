@@ -43,13 +43,27 @@ class MonitorWebSocketServer {
         if (this.unsubscribeBroker) {
             this.unsubscribeBroker();
         }
-        // Close all client connections
-        for (const [, client] of this.clients) {
-            client.send({ type: 'error', message: 'Server shutting down' });
-        }
         if (this.wss) {
+            // Forcefully close all client connections
+            for (const ws of this.wss.clients) {
+                try {
+                    ws.send(JSON.stringify({ type: 'error', message: 'Server shutting down' }));
+                    ws.terminate(); // Force close the connection
+                }
+                catch (err) {
+                    // Ignore errors during shutdown
+                }
+            }
             return new Promise((resolve) => {
+                // Add timeout to force resolve if close takes too long
+                const timeout = setTimeout(() => {
+                    console.log('[WebSocket] Server close timeout, forcing shutdown');
+                    this.wss = null;
+                    this.clients.clear();
+                    resolve();
+                }, 3000);
                 this.wss.close(() => {
+                    clearTimeout(timeout);
                     this.wss = null;
                     this.clients.clear();
                     console.log('[WebSocket] Server stopped');
@@ -128,6 +142,9 @@ class MonitorWebSocketServer {
                 break;
             case 'get_all_recent_events':
                 await this.sendAllRecentEvents(client, message.limit);
+                break;
+            case 'get_event_detail':
+                await this.sendEventDetail(client, message.sessionId, message.eventId);
                 break;
             case 'send_input':
                 // TODO: Implement input forwarding to Claude sessions
@@ -260,6 +277,28 @@ class MonitorWebSocketServer {
         catch (err) {
             console.error('[WebSocket] Failed to fetch all events:', err);
             client.send({ type: 'error', message: 'Failed to fetch events' });
+        }
+    }
+    /**
+     * Send event detail to a client
+     */
+    async sendEventDetail(client, sessionId, eventId) {
+        if (!this.persistence) {
+            client.send({ type: 'error', message: 'Persistence not available' });
+            return;
+        }
+        try {
+            const event = await this.persistence.getEventById(sessionId, eventId);
+            if (event) {
+                client.send({ type: 'event_detail', event });
+            }
+            else {
+                client.send({ type: 'error', message: 'Event not found' });
+            }
+        }
+        catch (err) {
+            console.error('[WebSocket] Failed to fetch event detail:', err);
+            client.send({ type: 'error', message: 'Failed to fetch event detail' });
         }
     }
     /**

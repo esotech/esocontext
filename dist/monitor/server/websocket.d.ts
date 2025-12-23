@@ -46,6 +46,10 @@ export declare class MonitorWebSocketServer {
      */
     private sendAllRecentEvents;
     /**
+     * Send event detail to a client
+     */
+    private sendEventDetail;
+    /**
      * Handle events from the broker
      */
     private handleBrokerEvent;

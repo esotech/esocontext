@@ -36,6 +36,8 @@ export class EventBroker {
   private sessions: Map<string, SessionMeta> = new Map();
   private config: MonitorConfig;
   private reconnectTimeout: NodeJS.Timeout | null = null;
+  private stopping: boolean = false;
+  private connectionAttempts: number = 0;
 
   constructor(config: MonitorConfig) {
     this.config = config;
@@ -58,6 +60,10 @@ export class EventBroker {
    * Stop the event broker
    */
   async stop(): Promise<void> {
+    // Set stopping flag BEFORE clearing timeout or destroying socket
+    // This prevents the close event from scheduling a new reconnection
+    this.stopping = true;
+
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
@@ -99,16 +105,23 @@ export class EventBroker {
     });
 
     this.daemonSocket.on('connect', () => {
+      this.connectionAttempts = 0; // Reset on successful connection
       console.log('[Broker] Connected to daemon');
     });
 
     this.daemonSocket.on('error', (err) => {
-      console.log('[Broker] Daemon connection error (daemon may not be running):', err.message);
+      // Only log after a few attempts to avoid noise during startup
+      if (this.connectionAttempts >= 3) {
+        console.log('[Broker] Daemon connection error:', err.message);
+      }
       this.scheduleDaemonReconnect();
     });
 
     this.daemonSocket.on('close', () => {
-      console.log('[Broker] Daemon connection closed, will retry...');
+      if (!this.stopping && this.connectionAttempts === 0) {
+        // Only log if we were previously connected
+        console.log('[Broker] Daemon connection closed, will retry...');
+      }
       this.scheduleDaemonReconnect();
     });
   }
@@ -117,14 +130,27 @@ export class EventBroker {
    * Schedule reconnection to daemon
    */
   private scheduleDaemonReconnect(): void {
+    // Don't reconnect if we're stopping
+    if (this.stopping) {
+      return;
+    }
+
     if (this.reconnectTimeout) {
       return;
     }
 
+    this.connectionAttempts++;
+
+    // Fast retries initially (500ms for first 5 attempts), then slow down
+    const delay = this.connectionAttempts <= 5 ? 500 : 5000;
+
     this.reconnectTimeout = setTimeout(() => {
       this.reconnectTimeout = null;
-      this.connectToDaemon();
-    }, 5000);
+      // Double-check stopping flag before reconnecting
+      if (!this.stopping) {
+        this.connectToDaemon();
+      }
+    }, delay);
   }
 
   /**

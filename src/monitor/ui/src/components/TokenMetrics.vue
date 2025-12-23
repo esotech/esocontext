@@ -11,25 +11,13 @@ const selectedSession = computed(() => store.selectedSession);
 const sessionMetrics = computed(() => {
   if (!selectedSession.value) return null;
 
-  const sessionEvents = store.events.filter(
-    e => e.sessionId === selectedSession.value?.sessionId && e.data.tokenUsage
-  );
-
-  let input = 0;
-  let output = 0;
-  let cacheRead = 0;
-  let cacheWrite = 0;
-
-  sessionEvents.forEach(e => {
-    if (e.data.tokenUsage) {
-      input += e.data.tokenUsage.input || 0;
-      output += e.data.tokenUsage.output || 0;
-      cacheRead += e.data.tokenUsage.cacheRead || 0;
-      cacheWrite += e.data.tokenUsage.cacheWrite || 0;
-    }
-  });
-
-  return { input, output, cacheRead, cacheWrite };
+  const session = selectedSession.value;
+  return {
+    input: session.tokenUsage?.totalInput || 0,
+    output: session.tokenUsage?.totalOutput || 0,
+    cacheRead: session.tokenUsage?.totalCacheRead || 0,
+    cacheWrite: session.tokenUsage?.totalCacheCreation || 0,
+  };
 });
 
 // Calculate approximate cost (rough estimate)

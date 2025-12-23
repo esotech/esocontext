@@ -22,6 +22,8 @@ export declare class EventBroker {
     private sessions;
     private config;
     private reconnectTimeout;
+    private stopping;
+    private connectionAttempts;
     constructor(config: MonitorConfig);
     /**
      * Start the event broker

@@ -208,6 +208,10 @@ export type ClientMessage = {
     type: 'get_all_recent_events';
     limit?: number;
 } | {
+    type: 'get_event_detail';
+    eventId: string;
+    sessionId: string;
+} | {
     type: 'send_input';
     sessionId: string;
     input: string;
@@ -266,6 +270,9 @@ export type ServerMessage = {
     type: 'all_events';
     events: MonitorEvent[];
 } | {
+    type: 'event_detail';
+    event: MonitorEvent;
+} | {
     type: 'error';
     message: string;
 };
@@ -318,6 +325,10 @@ export interface PersistenceStore {
         before?: number;
         after?: number;
     }): Promise<MonitorEvent[]>;
+    /**
+     * Get a single event by ID
+     */
+    getEventById(sessionId: string, eventId: string): Promise<MonitorEvent | null>;
     /**
      * Get all recent events across all sessions
      */

@@ -379,18 +379,18 @@ function buildEvent(hookPayload) {
   if (hookPayload.agent_type) {
     // SubagentStart/SubagentStop events have agent_type at top level
     data.subagent = {
-      type: hookPayload.agent_type,
+      type: hookPayload.agent_type.toLowerCase(),
       agentId: hookPayload.agent_id || undefined
     };
   } else if (hookPayload.subagent) {
     data.subagent = {
-      type: hookPayload.subagent.type || 'unknown',
+      type: (hookPayload.subagent.type || 'unknown').toLowerCase(),
       prompt: hookPayload.subagent.prompt || ''
     };
   } else if (hookPayload.tool_name === 'Task' && hookPayload.tool_input) {
     // For Task tool calls, extract subagent info from tool_input
     data.subagent = {
-      type: hookPayload.tool_input.subagent_type || 'unknown',
+      type: (hookPayload.tool_input.subagent_type || 'unknown').toLowerCase(),
       prompt: hookPayload.tool_input.prompt || '',
       description: hookPayload.tool_input.description || ''
     };

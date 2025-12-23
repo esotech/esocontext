@@ -32,6 +32,8 @@
 .event-error { @apply text-red-400; }
 .event-agent_spawn { @apply text-orange-400; }
 .event-agent_complete { @apply text-lime-400; }
+.event-subagent_start { @apply text-purple-400; }
+.event-subagent_stop { @apply text-purple-300; }
 
 /* Connection status indicators */
 .status-connected { @apply text-green-400; }

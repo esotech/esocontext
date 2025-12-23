@@ -187,7 +187,8 @@ async function installTools(names, force) {
     }
     return installed;
 }
-// Install skills (slash commands) - installs to commands/ folder for Claude Code compatibility
+// Install skills (slash commands)
+// Skills are installed to docs/ai/skills/ and symlinked to docs/ai/commands/ for Claude Code
 async function installSkills(names, force) {
     const templateSource = getTemplateSource();
     const templates = await discoverTemplates();
@@ -197,10 +198,25 @@ async function installSkills(names, force) {
         const matched = templates.skills.find(s => s.toLowerCase() === normalized);
         if (matched) {
             const src = path_1.default.join(templateSource, 'skills', `${matched}.md`);
-            // Install to commands/ folder - Claude Code looks for slash commands there
-            const dest = path_1.default.join('docs/ai/commands', `${matched}.md`);
-            if (await copyFile(src, dest, force)) {
+            const skillDest = path_1.default.join('docs/ai/skills', `${matched}.md`);
+            const commandDest = path_1.default.join('docs/ai/commands', `${matched}.md`);
+            // Install skill file to skills/
+            if (await copyFile(src, skillDest, force)) {
                 installed++;
+                // Create symlink in commands/ for Claude Code to pick up
+                await fs_extra_1.default.ensureDir(path_1.default.dirname(commandDest));
+                const symlinkTarget = path_1.default.relative(path_1.default.dirname(commandDest), skillDest);
+                if (fs_extra_1.default.existsSync(commandDest)) {
+                    if (force) {
+                        await fs_extra_1.default.remove(commandDest);
+                    }
+                    else {
+                        console.log(chalk_1.default.yellow(`[SKIP] Symlink already exists: ${commandDest}`));
+                        continue;
+                    }
+                }
+                await fs_extra_1.default.symlink(symlinkTarget, commandDest);
+                console.log(chalk_1.default.green(`[OK] Symlinked: ${commandDest} -> ${symlinkTarget}`));
             }
         }
         else {

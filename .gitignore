@@ -26,13 +26,8 @@ vendor/
 *.env
 .env.*
 
-# Contextuate - AI task tracking (user-specific)
-docs/ai/tasks/
-
 # Contextuate - Framework files
-docs/ai/.context/
-docs/ai/tasks/
-docs/ai/agents/
+docs/ai/.contextuate/
 
 # Contextuate - Generated Artifacts (DO NOT EDIT)
 /CLAUDE.md
@@ -43,16 +38,8 @@ docs/ai/agents/
 .cursor/rules/project.mdc
 .windsurf/rules/project.md
 .github/copilot-instructions.md
+.playwright-mcp/
 
-# Allow templates and local rules to be tracked
-!.gemini/rules.md
-!docs/ai/.contextuate/templates/platforms/*.md
-!docs/ai/.contextuate/templates/platforms/.clinerules/*.md
-!docs/ai/.contextuate/templates/platforms/.cursor/rules/*.mdc
-!docs/ai/.contextuate/templates/platforms/.windsurf/rules/*.md
-!/.cursor/rules/project.mdc
-!/.windsurf/rules/project.md
-!/.github/copilot-instructions.md
-!/CLAUDE.md
-!/GEMINI.md
-!/AGENTS.md
+#Contextuate - Dev Files
+docs/ai/agents/*
+docs/ai/tasks/*

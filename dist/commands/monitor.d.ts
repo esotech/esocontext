@@ -9,7 +9,10 @@
 /**
  * Initialize monitor command
  */
-export declare function monitorInitCommand(): Promise<void>;
+export declare function monitorInitCommand(options?: {
+    global?: boolean;
+    project?: boolean;
+}): Promise<void>;
 /**
  * Start monitor server command
  */

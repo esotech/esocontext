@@ -141,6 +141,8 @@ const monitor = program
 monitor
     .command('init')
     .description('Initialize monitor configuration and install hooks')
+    .option('--global', 'Install hooks at user level (~/.claude/settings.json) - DEFAULT')
+    .option('--project', 'Install hooks at project level (.claude/settings.json)')
     .action(monitorInitCommand);
 
 // Subcommand: monitor start (explicit)

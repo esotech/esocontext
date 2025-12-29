@@ -24,10 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `contextuate monitor init` - Initialize monitor hooks
   - `contextuate monitor start` - Launch dashboard
   - `contextuate monitor status` - Check server status
+- **Hybrid Hook Installation**: Monitor hooks can now be installed at user or project level
+  - `contextuate monitor init --global` - Install hooks at user level (~/.claude/settings.json) - DEFAULT
+  - `contextuate monitor init --project` - Install hooks at project level (.claude/settings.json)
+  - Interactive mode defaults to user-level installation for convenience
 
 ### Changed
 - Updated documentation with skills section
 - Interactive install now includes skills category
+- Monitor init command now defaults to user-level hook installation (was project-level)
 
 ## [2.0.0] - 2025-12-16
 

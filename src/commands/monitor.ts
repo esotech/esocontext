@@ -113,7 +113,10 @@ async function saveConfig(config: MonitorConfig): Promise<void> {
 /**
  * Initialize monitor command
  */
-export async function monitorInitCommand(): Promise<void> {
+export async function monitorInitCommand(options?: {
+    global?: boolean;
+    project?: boolean;
+}): Promise<void> {
     console.log(chalk.blue(''));
     console.log(chalk.blue('=========================================='));
     console.log(chalk.blue('  Contextuate Monitor Setup'));
@@ -296,21 +299,37 @@ export async function monitorInitCommand(): Promise<void> {
             console.log(chalk.yellow(`[WARN] Hook script source not found. You may need to copy it manually.`));
         }
 
-        // Step 7: Ask about Claude settings integration
+        // Step 7: Determine hook location (from flags or interactive)
         console.log('');
-        const { hookLocation } = await inquirer.prompt([
-            {
-                type: 'list',
-                name: 'hookLocation',
-                message: 'Where should hooks be registered?',
-                choices: [
-                    { name: 'Project level (.claude/settings.json in current directory)', value: 'project' },
-                    { name: 'Home level (~/.claude/settings.json - applies to all projects)', value: 'home' },
-                    { name: 'Skip - I will configure hooks manually', value: 'skip' },
-                ],
-                default: 'project',
-            },
-        ]);
+        let hookLocation: string;
+
+        // Check if flags were provided
+        if (options?.global && options?.project) {
+            console.log(chalk.yellow('[WARN] Both --global and --project flags specified. Using --global (default).'));
+            hookLocation = 'home';
+        } else if (options?.global) {
+            hookLocation = 'home';
+            console.log(chalk.blue('[INFO] Installing hooks at user level (--global)'));
+        } else if (options?.project) {
+            hookLocation = 'project';
+            console.log(chalk.blue('[INFO] Installing hooks at project level (--project)'));
+        } else {
+            // No flags provided - ask interactively (default to global/home)
+            const answer = await inquirer.prompt([
+                {
+                    type: 'list',
+                    name: 'hookLocation',
+                    message: 'Where should hooks be registered?',
+                    choices: [
+                        { name: 'User level (~/.claude/settings.json - applies to all projects) - DEFAULT', value: 'home' },
+                        { name: 'Project level (.claude/settings.json in current directory)', value: 'project' },
+                        { name: 'Skip - I will configure hooks manually', value: 'skip' },
+                    ],
+                    default: 'home',
+                },
+            ]);
+            hookLocation = answer.hookLocation;
+        }
 
         if (hookLocation !== 'skip') {
             const settingsFile = hookLocation === 'project'

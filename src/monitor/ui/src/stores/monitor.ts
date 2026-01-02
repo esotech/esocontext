@@ -39,6 +39,7 @@ export const useMonitorStore = defineStore('monitor', () => {
   const wrappers = ref<WrapperInfo[]>([]);
   const selectedWrapperId = ref<string | null>(null);
   const wrapperOutputBuffers = ref<Map<string, string[]>>(new Map());
+  const lastWrapperOutput = ref<{ wrapperId: string; data: string } | null>(null);
 
   // Filter state
   const filters = ref<FilterState>({
@@ -346,14 +347,19 @@ export const useMonitorStore = defineStore('monitor', () => {
         break;
 
       case 'wrapper_output':
-        // Buffer output for display
+        // Handle terminal output - store raw data for xterm.js
         const buffer = wrapperOutputBuffers.value.get(message.wrapperId);
         if (buffer) {
-          buffer.push(message.data);
-          // Keep buffer size reasonable (last 1000 lines worth)
-          if (buffer.length > 1000) {
-            buffer.splice(0, buffer.length - 1000);
+          const data = message.data;
+          buffer.push(data);
+
+          // Keep buffer size reasonable
+          if (buffer.length > 500) {
+            buffer.splice(0, buffer.length - 500);
           }
+
+          // Update lastWrapperOutput for reactive watching
+          lastWrapperOutput.value = { wrapperId: message.wrapperId, data };
         }
         break;
     }
@@ -491,24 +497,29 @@ export const useMonitorStore = defineStore('monitor', () => {
   }
 
   function injectInput(wrapperId: string, input: string) {
-    const wrapper = wrappers.value.find(w => w.wrapperId === wrapperId);
-    if (!wrapper) {
-      console.error(`[Monitor] Wrapper not found: ${wrapperId}`);
-      return;
-    }
-
-    if (wrapper.state !== 'waiting_input') {
-      console.error(`[Monitor] Wrapper ${wrapperId} not waiting for input (state: ${wrapper.state})`);
-      return;
-    }
-
-    console.log(`[Monitor] Injecting input to wrapper ${wrapperId}: ${input.slice(0, 50)}...`);
+    // Direct passthrough - send input immediately without state checks
+    // This allows typing directly into the terminal at any time
     send({ type: 'inject_input', wrapperId, input });
+  }
+
+  function resizeWrapper(wrapperId: string, cols: number, rows: number) {
+    // Notify daemon to resize the PTY
+    send({ type: 'resize_wrapper', wrapperId, cols, rows } as any);
   }
 
   function getWrapperOutput(wrapperId: string): string {
     const buffer = wrapperOutputBuffers.value.get(wrapperId);
     return buffer ? buffer.join('') : '';
+  }
+
+  function getRawWrapperOutput(wrapperId: string): string {
+    const buffer = wrapperOutputBuffers.value.get(wrapperId);
+    return buffer ? buffer.join('') : '';
+  }
+
+  function getWrapperOutputChunks(wrapperId: string): string[] {
+    const buffer = wrapperOutputBuffers.value.get(wrapperId);
+    return buffer ? [...buffer] : [];
   }
 
   // Computed for selected wrapper
@@ -585,6 +596,10 @@ export const useMonitorStore = defineStore('monitor', () => {
     getEventDetail,
     selectWrapper,
     injectInput,
+    resizeWrapper,
     getWrapperOutput,
+    getRawWrapperOutput,
+    getWrapperOutputChunks,
+    lastWrapperOutput,
   };
 });

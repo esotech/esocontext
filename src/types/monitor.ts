@@ -315,7 +315,8 @@ export type ClientMessage =
   | { type: 'set_user_initiated'; sessionId: string; isUserInitiated: boolean }
   | { type: 'rename_session'; sessionId: string; label: string }
   | { type: 'get_wrappers' }
-  | { type: 'inject_input'; wrapperId: string; input: string };
+  | { type: 'inject_input'; wrapperId: string; input: string }
+  | { type: 'resize_wrapper'; wrapperId: string; cols: number; rows: number };
 
 /**
  * Wrapper session state

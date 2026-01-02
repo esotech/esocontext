@@ -254,6 +254,11 @@ export type ClientMessage = {
     type: 'inject_input';
     wrapperId: string;
     input: string;
+} | {
+    type: 'resize_wrapper';
+    wrapperId: string;
+    cols: number;
+    rows: number;
 };
 /**
  * Wrapper session state

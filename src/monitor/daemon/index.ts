@@ -6,6 +6,7 @@
  * - Processes events (correlates sessions, tracks subagents)
  * - Persists data to sessions/
  * - Notifies UI server via Unix socket/Redis
+ * - Manages Claude wrapper sessions with PTY
  *
  * This is Layer 2 of the 3-layer architecture:
  * Layer 1: Hooks (write to raw/)
@@ -14,17 +15,19 @@
  */
 
 import * as fs from 'fs';
+import * as path from 'path';
 import * as net from 'net';
 import { MonitorConfig, getDefaultMonitorPaths } from '../../types/monitor.js';
 import { StateManager } from './state.js';
 import { FileWatcher } from './watcher.js';
 import { EventProcessor } from './processor.js';
 import { Notifier } from './notifier.js';
+import { WrapperManager } from './wrapper-manager.js';
 
 const PATHS = getDefaultMonitorPaths();
 
-// Wrapper session info
-interface WrapperSession {
+// Legacy wrapper session info (for external wrapper processes)
+interface LegacyWrapperSession {
   wrapperId: string;
   socket: net.Socket;
   pid: number;
@@ -42,7 +45,8 @@ export class MonitorDaemon {
   private notifier: Notifier;
   private socketServer: net.Server | null = null;
   private uiClients: Set<net.Socket> = new Set();
-  private wrapperSessions: Map<string, WrapperSession> = new Map();
+  private legacyWrapperSessions: Map<string, LegacyWrapperSession> = new Map();
+  private wrapperManager: WrapperManager;
   private running = false;
 
   constructor(config: MonitorConfig) {
@@ -51,6 +55,60 @@ export class MonitorDaemon {
     this.notifier = new Notifier(config, (data) => this.broadcastToClients(data));
     this.processor = new EventProcessor(this.state, this.notifier);
     this.watcher = new FileWatcher();
+
+    // Initialize wrapper manager
+    const wrapperPersistPath = path.join(PATHS.baseDir, 'wrappers.json');
+    this.wrapperManager = new WrapperManager(wrapperPersistPath, (event) => {
+      this.handleWrapperManagerEvent(event);
+    });
+  }
+
+  /**
+   * Handle events from WrapperManager
+   */
+  private handleWrapperManagerEvent(event: {
+    type: 'output' | 'state_changed' | 'started' | 'ended';
+    wrapperId: string;
+    data?: string;
+    state?: string;
+    claudeSessionId?: string;
+    exitCode?: number;
+  }): void {
+    switch (event.type) {
+      case 'output':
+        this.broadcastToClients({
+          type: 'wrapper_output',
+          wrapperId: event.wrapperId,
+          data: event.data,
+          timestamp: Date.now(),
+        });
+        break;
+
+      case 'state_changed':
+        this.broadcastToClients({
+          type: 'wrapper_state',
+          wrapperId: event.wrapperId,
+          state: event.state,
+          claudeSessionId: event.claudeSessionId,
+        });
+        break;
+
+      case 'started':
+        this.broadcastToClients({
+          type: 'wrapper_connected',
+          wrapperId: event.wrapperId,
+          state: event.state || 'starting',
+        });
+        break;
+
+      case 'ended':
+        this.broadcastToClients({
+          type: 'wrapper_disconnected',
+          wrapperId: event.wrapperId,
+          exitCode: event.exitCode,
+        });
+        break;
+    }
   }
 
   /**
@@ -79,6 +137,9 @@ export class MonitorDaemon {
     // Load existing sessions
     await this.processor.loadSessions();
 
+    // Initialize wrapper manager (loads persisted wrappers, cleans up dead ones)
+    await this.wrapperManager.initialize();
+
     // Set up file watcher
     this.watcher.setLastProcessedTimestamp(this.state.lastProcessedTimestamp);
     this.watcher.setHandler((event, filepath) => this.processor.processEvent(event, filepath));
@@ -101,6 +162,9 @@ export class MonitorDaemon {
     console.log('[Daemon] Stopping monitor daemon...');
 
     this.running = false;
+
+    // Shutdown wrapper manager (kills all wrappers, persists state)
+    await this.wrapperManager.shutdown();
 
     // Stop file watcher
     await this.watcher.stop();
@@ -229,6 +293,30 @@ export class MonitorDaemon {
                 continue;
               }
 
+              // Handle resize request from UI
+              if (message.type === 'resize_wrapper') {
+                this.handleWrapperResize(message);
+                continue;
+              }
+
+              // Handle spawn wrapper request
+              if (message.type === 'spawn_wrapper') {
+                this.handleSpawnWrapper(socket, message);
+                continue;
+              }
+
+              // Handle kill wrapper request
+              if (message.type === 'kill_wrapper') {
+                this.handleKillWrapper(message);
+                continue;
+              }
+
+              // Handle get wrappers request
+              if (message.type === 'get_wrappers') {
+                this.handleGetWrappers(socket);
+                continue;
+              }
+
               // Process hook events immediately for instant updates
               if (message.id && message.eventType) {
                 // This is an event from a hook - process it instantly
@@ -250,10 +338,10 @@ export class MonitorDaemon {
       socket.on('close', () => {
         this.uiClients.delete(socket);
 
-        // Clean up wrapper session if this was a wrapper
+        // Clean up legacy wrapper session if this was an external wrapper
         if (isWrapper && wrapperId) {
-          this.wrapperSessions.delete(wrapperId);
-          console.log(`[Daemon] Wrapper ${wrapperId} disconnected (${this.wrapperSessions.size} wrappers remaining)`);
+          this.legacyWrapperSessions.delete(wrapperId);
+          console.log(`[Daemon] Legacy wrapper ${wrapperId} disconnected (${this.legacyWrapperSessions.size} legacy wrappers remaining)`);
         } else {
           console.log(`[Daemon] Client disconnected (${this.uiClients.size} remaining)`);
         }
@@ -262,7 +350,7 @@ export class MonitorDaemon {
       socket.on('error', () => {
         this.uiClients.delete(socket);
         if (isWrapper && wrapperId) {
-          this.wrapperSessions.delete(wrapperId);
+          this.legacyWrapperSessions.delete(wrapperId);
         }
       });
     });
@@ -273,10 +361,10 @@ export class MonitorDaemon {
   }
 
   /**
-   * Handle wrapper registration
+   * Handle wrapper registration (legacy external wrapper process)
    */
   private handleWrapperRegister(socket: net.Socket, message: any): void {
-    const session: WrapperSession = {
+    const session: LegacyWrapperSession = {
       wrapperId: message.wrapperId,
       socket,
       pid: message.pid,
@@ -286,8 +374,8 @@ export class MonitorDaemon {
       startTime: Date.now(),
     };
 
-    this.wrapperSessions.set(message.wrapperId, session);
-    console.log(`[Daemon] Wrapper registered: ${message.wrapperId} (PID: ${message.pid})`);
+    this.legacyWrapperSessions.set(message.wrapperId, session);
+    console.log(`[Daemon] Legacy wrapper registered: ${message.wrapperId} (PID: ${message.pid})`);
 
     // Acknowledge registration
     socket.write(JSON.stringify({ type: 'registered', wrapperId: message.wrapperId }) + '\n');
@@ -301,24 +389,24 @@ export class MonitorDaemon {
   }
 
   /**
-   * Handle wrapper started notification
+   * Handle wrapper started notification (legacy)
    */
   private handleWrapperStarted(message: any): void {
-    const session = this.wrapperSessions.get(message.wrapperId);
+    const session = this.legacyWrapperSessions.get(message.wrapperId);
     if (session) {
       session.cwd = message.cwd || '';
-      console.log(`[Daemon] Wrapper ${message.wrapperId} started Claude in ${session.cwd}`);
+      console.log(`[Daemon] Legacy wrapper ${message.wrapperId} started Claude in ${session.cwd}`);
     }
   }
 
   /**
-   * Handle wrapper ended notification
+   * Handle wrapper ended notification (legacy)
    */
   private handleWrapperEnded(message: any): void {
-    const session = this.wrapperSessions.get(message.wrapperId);
+    const session = this.legacyWrapperSessions.get(message.wrapperId);
     if (session) {
       session.state = 'ended';
-      console.log(`[Daemon] Wrapper ${message.wrapperId} ended (exit: ${message.exitCode})`);
+      console.log(`[Daemon] Legacy wrapper ${message.wrapperId} ended (exit: ${message.exitCode})`);
 
       // Notify UI clients
       this.broadcastToClients({
@@ -330,13 +418,13 @@ export class MonitorDaemon {
   }
 
   /**
-   * Handle wrapper state change
+   * Handle wrapper state change (legacy)
    */
   private handleWrapperStateChange(message: any): void {
-    const session = this.wrapperSessions.get(message.wrapperId);
+    const session = this.legacyWrapperSessions.get(message.wrapperId);
     if (session) {
       session.state = message.state;
-      console.log(`[Daemon] Wrapper ${message.wrapperId} state: ${message.state}`);
+      console.log(`[Daemon] Legacy wrapper ${message.wrapperId} state: ${message.state}`);
 
       // Notify UI clients about state change
       this.broadcastToClients({
@@ -348,7 +436,7 @@ export class MonitorDaemon {
   }
 
   /**
-   * Handle wrapper output (for session log)
+   * Handle wrapper output (for legacy external wrappers)
    */
   private handleWrapperOutput(message: any): void {
     // Forward output to UI clients for session log view
@@ -366,35 +454,112 @@ export class MonitorDaemon {
   private handleInputInjection(message: any): void {
     const { wrapperId, input } = message;
 
-    // Find wrapper by ID
-    const session = this.wrapperSessions.get(wrapperId);
-    if (!session) {
-      console.error(`[Daemon] No wrapper found with ID: ${wrapperId}`);
+    // Try managed wrapper first
+    if (this.wrapperManager.writeInput(wrapperId, input)) {
       return;
     }
 
-    // Check if wrapper is waiting for input
-    if (session.state !== 'waiting_input') {
-      console.error(`[Daemon] Wrapper ${wrapperId} not waiting for input (state: ${session.state})`);
+    // Fall back to legacy wrapper
+    const session = this.legacyWrapperSessions.get(wrapperId);
+    if (session) {
+      session.socket.write(JSON.stringify({
+        type: 'inject_input',
+        input,
+      }) + '\n');
+    }
+  }
+
+  /**
+   * Handle resize request from UI
+   */
+  private handleWrapperResize(message: any): void {
+    const { wrapperId, cols, rows } = message;
+
+    // Try managed wrapper first
+    if (this.wrapperManager.resize(wrapperId, cols, rows)) {
       return;
     }
 
-    // Send input to wrapper
-    console.log(`[Daemon] Injecting input to wrapper ${wrapperId}: ${input.slice(0, 50)}...`);
-    session.socket.write(JSON.stringify({
-      type: 'inject_input',
-      input,
+    // Fall back to legacy wrapper
+    const session = this.legacyWrapperSessions.get(wrapperId);
+    if (session) {
+      session.socket.write(JSON.stringify({
+        type: 'resize',
+        cols,
+        rows,
+      }) + '\n');
+    }
+  }
+
+  /**
+   * Handle spawn wrapper request
+   */
+  private async handleSpawnWrapper(socket: net.Socket, message: any): Promise<void> {
+    try {
+      const wrapperId = await this.wrapperManager.spawn({
+        cwd: message.cwd || process.cwd(),
+        args: message.args || [],
+        cols: message.cols || 120,
+        rows: message.rows || 40,
+      });
+
+      // Send response with wrapper ID
+      socket.write(JSON.stringify({
+        type: 'wrapper_spawned',
+        wrapperId,
+        success: true,
+      }) + '\n');
+
+      console.log(`[Daemon] Spawned wrapper ${wrapperId}`);
+    } catch (err) {
+      const error = err as Error;
+      socket.write(JSON.stringify({
+        type: 'wrapper_spawned',
+        success: false,
+        error: error.message,
+      }) + '\n');
+      console.error(`[Daemon] Failed to spawn wrapper:`, error.message);
+    }
+  }
+
+  /**
+   * Handle kill wrapper request
+   */
+  private handleKillWrapper(message: any): void {
+    const { wrapperId } = message;
+    if (this.wrapperManager.kill(wrapperId)) {
+      console.log(`[Daemon] Killed wrapper ${wrapperId}`);
+    }
+  }
+
+  /**
+   * Handle get wrappers request
+   */
+  private handleGetWrappers(socket: net.Socket): void {
+    const managedWrappers = this.wrapperManager.getAll().map(w => ({
+      wrapperId: w.wrapperId,
+      pid: w.pid,
+      state: w.state,
+      claudeSessionId: w.claudeSessionId,
+      cwd: w.cwd,
+      startTime: w.startTime,
+      managed: true,
+    }));
+
+    const legacyWrappers = Array.from(this.legacyWrapperSessions.values()).map(w => ({
+      wrapperId: w.wrapperId,
+      pid: w.pid,
+      state: w.state,
+      claudeSessionId: w.claudeSessionId,
+      cwd: w.cwd,
+      startTime: w.startTime,
+      managed: false,
+    }));
+
+    socket.write(JSON.stringify({
+      type: 'wrappers_list',
+      wrappers: [...managedWrappers, ...legacyWrappers],
     }) + '\n');
-
-    // Update state
-    session.state = 'processing';
-
-    // Notify UI
-    this.broadcastToClients({
-      type: 'wrapper_state',
-      wrapperId,
-      state: 'processing',
-    });
   }
 
   /**
@@ -404,8 +569,22 @@ export class MonitorDaemon {
   private checkAndNotifyWrapperState(event: any): void {
     // Stop events typically indicate Claude is waiting for input
     if (event.hookType === 'Stop' || event.hookType === 'Notification') {
-      // Try to find a wrapper session for this Claude session
-      for (const [wrapperId, session] of this.wrapperSessions) {
+      // Try managed wrappers first
+      for (const wrapper of this.wrapperManager.getAll()) {
+        if (wrapper.claudeSessionId === event.sessionId) {
+          this.wrapperManager.updateState(wrapper.wrapperId, 'waiting_input');
+          return;
+        }
+        // Try to match by working directory
+        if (!wrapper.claudeSessionId && event.workingDirectory === wrapper.cwd) {
+          this.wrapperManager.updateState(wrapper.wrapperId, 'waiting_input', event.sessionId);
+          console.log(`[Daemon] Associated managed wrapper ${wrapper.wrapperId} with Claude session ${event.sessionId}`);
+          return;
+        }
+      }
+
+      // Try legacy wrappers
+      for (const [wrapperId, session] of this.legacyWrapperSessions) {
         // Match by Claude session ID if we have it
         if (session.claudeSessionId === event.sessionId) {
           session.state = 'waiting_input';
@@ -427,7 +606,7 @@ export class MonitorDaemon {
           // Associate this Claude session with the wrapper
           session.claudeSessionId = event.sessionId;
           session.state = 'waiting_input';
-          console.log(`[Daemon] Associated wrapper ${wrapperId} with Claude session ${event.sessionId}`);
+          console.log(`[Daemon] Associated legacy wrapper ${wrapperId} with Claude session ${event.sessionId}`);
 
           session.socket.write(JSON.stringify({
             type: 'state_update',
@@ -449,12 +628,22 @@ export class MonitorDaemon {
   /**
    * Get list of active wrapper sessions (for UI)
    */
-  getWrapperSessions(): Array<{ wrapperId: string; state: string; claudeSessionId: string | null }> {
-    return Array.from(this.wrapperSessions.values()).map(s => ({
+  getWrapperSessions(): Array<{ wrapperId: string; state: string; claudeSessionId: string | null; managed: boolean }> {
+    const managed = this.wrapperManager.getAll().map(s => ({
       wrapperId: s.wrapperId,
       state: s.state,
       claudeSessionId: s.claudeSessionId,
+      managed: true,
     }));
+
+    const legacy = Array.from(this.legacyWrapperSessions.values()).map(s => ({
+      wrapperId: s.wrapperId,
+      state: s.state,
+      claudeSessionId: s.claudeSessionId,
+      managed: false,
+    }));
+
+    return [...managed, ...legacy];
   }
 }
 

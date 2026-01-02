@@ -192,4 +192,17 @@ program
     .action((args) => {
     (0, claude_1.claudeCommand)(args);
 });
+// Wrapper command group - manage Claude wrapper sessions
+const wrapper = program
+    .command('wrapper')
+    .description('Manage Claude wrapper sessions');
+wrapper
+    .command('list')
+    .description('List active wrapper sessions')
+    .action(claude_1.listWrappersCommand);
+wrapper
+    .command('kill')
+    .argument('<wrapperId>', 'Wrapper ID to kill')
+    .description('Kill a wrapper session')
+    .action(claude_1.killWrapperCommand);
 program.parse();

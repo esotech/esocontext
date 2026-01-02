@@ -6,6 +6,7 @@
  * - Processes events (correlates sessions, tracks subagents)
  * - Persists data to sessions/
  * - Notifies UI server via Unix socket/Redis
+ * - Manages Claude wrapper sessions with PTY
  *
  * This is Layer 2 of the 3-layer architecture:
  * Layer 1: Hooks (write to raw/)
@@ -21,9 +22,14 @@ export declare class MonitorDaemon {
     private notifier;
     private socketServer;
     private uiClients;
-    private wrapperSessions;
+    private legacyWrapperSessions;
+    private wrapperManager;
     private running;
     constructor(config: MonitorConfig);
+    /**
+     * Handle events from WrapperManager
+     */
+    private handleWrapperManagerEvent;
     /**
      * Broadcast data to all connected UI clients
      */
@@ -45,29 +51,45 @@ export declare class MonitorDaemon {
      */
     private startSocketServer;
     /**
-     * Handle wrapper registration
+     * Handle wrapper registration (legacy external wrapper process)
      */
     private handleWrapperRegister;
     /**
-     * Handle wrapper started notification
+     * Handle wrapper started notification (legacy)
      */
     private handleWrapperStarted;
     /**
-     * Handle wrapper ended notification
+     * Handle wrapper ended notification (legacy)
      */
     private handleWrapperEnded;
     /**
-     * Handle wrapper state change
+     * Handle wrapper state change (legacy)
      */
     private handleWrapperStateChange;
     /**
-     * Handle wrapper output (for session log)
+     * Handle wrapper output (for legacy external wrappers)
      */
     private handleWrapperOutput;
     /**
      * Handle input injection request from UI
      */
     private handleInputInjection;
+    /**
+     * Handle resize request from UI
+     */
+    private handleWrapperResize;
+    /**
+     * Handle spawn wrapper request
+     */
+    private handleSpawnWrapper;
+    /**
+     * Handle kill wrapper request
+     */
+    private handleKillWrapper;
+    /**
+     * Handle get wrappers request
+     */
+    private handleGetWrappers;
     /**
      * Check if a hook event indicates waiting for input
      * and notify relevant wrapper
@@ -80,6 +102,7 @@ export declare class MonitorDaemon {
         wrapperId: string;
         state: string;
         claudeSessionId: string | null;
+        managed: boolean;
     }>;
 }
 /**

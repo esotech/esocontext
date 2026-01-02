@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useMonitorStore } from '../stores/monitor';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
 
 const store = useMonitorStore();
 
-const inputText = ref('');
-const terminalRef = ref<HTMLElement | null>(null);
+const terminalContainerRef = ref<HTMLElement | null>(null);
+
+// Map of wrapper ID to xterm Terminal instance
+const terminals = ref<Map<string, { terminal: Terminal; fitAddon: FitAddon }>>(new Map());
 
 // Computed
 const wrappers = computed(() => store.wrappers);
@@ -13,36 +18,162 @@ const activeWrappers = computed(() => store.activeWrappers);
 const selectedWrapper = computed(() => store.selectedWrapper);
 const wrappersWaitingInput = computed(() => store.wrappersWaitingInput);
 
-// Get output for selected wrapper
-const terminalOutput = computed(() => {
-  if (!store.selectedWrapperId) return '';
-  return store.getWrapperOutput(store.selectedWrapperId);
+// Create or get terminal for a wrapper
+function getOrCreateTerminal(wrapperId: string): { terminal: Terminal; fitAddon: FitAddon } | null {
+  if (terminals.value.has(wrapperId)) {
+    return terminals.value.get(wrapperId)!;
+  }
+
+  // Create new terminal - act as direct PTY passthrough
+  const terminal = new Terminal({
+    cursorBlink: true,
+    cursorStyle: 'block',
+    fontSize: 13,
+    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+    theme: {
+      background: '#0f172a',
+      foreground: '#e2e8f0',
+      cursor: '#22d3ee',
+      cursorAccent: '#0f172a',
+      selectionBackground: '#334155',
+      black: '#1e293b',
+      red: '#ef4444',
+      green: '#22c55e',
+      yellow: '#eab308',
+      blue: '#3b82f6',
+      magenta: '#a855f7',
+      cyan: '#22d3ee',
+      white: '#f1f5f9',
+      brightBlack: '#475569',
+      brightRed: '#f87171',
+      brightGreen: '#4ade80',
+      brightYellow: '#facc15',
+      brightBlue: '#60a5fa',
+      brightMagenta: '#c084fc',
+      brightCyan: '#67e8f9',
+      brightWhite: '#f8fafc',
+    },
+    scrollback: 10000,
+    convertEol: false,  // Don't convert - pass through raw
+    allowProposedApi: true,
+  });
+
+  const fitAddon = new FitAddon();
+  terminal.loadAddon(fitAddon);
+
+  // Capture ALL keyboard input and send directly to PTY
+  terminal.onData((data) => {
+    store.injectInput(wrapperId, data);
+  });
+
+  // Notify server when terminal is resized
+  terminal.onResize(({ cols, rows }) => {
+    store.resizeWrapper(wrapperId, cols, rows);
+  });
+
+  terminals.value.set(wrapperId, { terminal, fitAddon });
+  return { terminal, fitAddon };
+}
+
+// Mount terminal to container when wrapper is selected
+async function mountTerminal(wrapperId: string) {
+  await nextTick();
+
+  if (!terminalContainerRef.value) return;
+
+  const termData = getOrCreateTerminal(wrapperId);
+  if (!termData) return;
+
+  const { terminal, fitAddon } = termData;
+
+  // Check if already mounted to this container
+  const existingTerminal = terminalContainerRef.value.querySelector('.xterm');
+  if (existingTerminal) {
+    // Already mounted, just fit
+    try {
+      fitAddon.fit();
+    } catch (e) {
+      // Ignore
+    }
+    return;
+  }
+
+  // Clear container and mount
+  terminalContainerRef.value.innerHTML = '';
+  terminal.open(terminalContainerRef.value);
+
+  // Fit terminal to container
+  await nextTick();
+  try {
+    fitAddon.fit();
+    // Send initial size to PTY
+    store.resizeWrapper(wrapperId, terminal.cols, terminal.rows);
+  } catch (e) {
+    // Ignore fit errors during initial mount
+  }
+
+  // Focus the terminal for input
+  terminal.focus();
+}
+
+// Handle new output from store - direct passthrough, no processing
+function handleWrapperOutput(wrapperId: string, data: string) {
+  const termData = terminals.value.get(wrapperId);
+  if (termData) {
+    // Direct write - let xterm.js handle all escape sequences natively
+    termData.terminal.write(data);
+  }
+}
+
+// Watch for wrapper selection changes
+watch(() => store.selectedWrapperId, async (newId, oldId) => {
+  if (newId) {
+    await mountTerminal(newId);
+
+    // Focus the terminal
+    const termData = terminals.value.get(newId);
+    if (termData) {
+      termData.terminal.focus();
+    }
+  }
+}, { immediate: true });
+
+// Watch for new output - direct passthrough
+watch(() => store.lastWrapperOutput, (output) => {
+  if (output) {
+    handleWrapperOutput(output.wrapperId, output.data);
+  }
 });
 
-// Auto-scroll terminal when output changes
-watch(terminalOutput, async () => {
-  await nextTick();
-  if (terminalRef.value) {
-    terminalRef.value.scrollTop = terminalRef.value.scrollHeight;
+// Handle window resize
+function handleResize() {
+  if (store.selectedWrapperId) {
+    const termData = terminals.value.get(store.selectedWrapperId);
+    if (termData) {
+      try {
+        termData.fitAddon.fit();
+      } catch (e) {
+        // Ignore fit errors
+      }
+    }
   }
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
+  // Dispose all terminals
+  for (const [, { terminal }] of terminals.value) {
+    terminal.dispose();
+  }
+  terminals.value.clear();
 });
 
 function selectWrapper(wrapperId: string) {
   store.selectWrapper(wrapperId);
-}
-
-function sendInput() {
-  if (!store.selectedWrapperId || !inputText.value.trim()) return;
-
-  store.injectInput(store.selectedWrapperId, inputText.value);
-  inputText.value = '';
-}
-
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendInput();
-  }
 }
 
 function getStateColor(state: string): string {
@@ -123,54 +254,20 @@ function getStateIcon(state: string): string {
               <code class="text-xs text-slate-400">{{ selectedWrapper.claudeSessionId.slice(0, 8) }}</code>
             </template>
           </div>
+          <div class="text-xs text-monitor-text-muted">
+            Click terminal to type directly
+          </div>
         </div>
 
-        <!-- Terminal output -->
+        <!-- Terminal (xterm.js - direct PTY passthrough) -->
         <div
-          ref="terminalRef"
-          class="flex-1 overflow-auto p-3 bg-black font-mono text-sm text-green-400 whitespace-pre-wrap"
-        >
-          <template v-if="terminalOutput">
-            {{ terminalOutput }}
-          </template>
-          <template v-else>
-            <span class="text-gray-500">Waiting for output...</span>
-          </template>
-        </div>
-
-        <!-- Input area -->
-        <div class="border-t border-slate-700 p-3">
-          <div class="flex items-center space-x-2">
-            <div class="flex-1 relative">
-              <textarea
-                v-model="inputText"
-                :disabled="selectedWrapper.state !== 'waiting_input'"
-                :placeholder="selectedWrapper.state === 'waiting_input' ? 'Type your input...' : 'Waiting for Claude...'"
-                class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-sm text-monitor-text-primary placeholder-slate-500 resize-none focus:outline-none focus:border-monitor-accent-cyan disabled:opacity-50 disabled:cursor-not-allowed"
-                rows="2"
-                @keydown="handleKeydown"
-              ></textarea>
-            </div>
-            <button
-              :disabled="selectedWrapper.state !== 'waiting_input' || !inputText.trim()"
-              class="px-4 py-2 bg-monitor-accent-cyan text-white rounded font-medium text-sm hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              @click="sendInput"
-            >
-              Send
-            </button>
-          </div>
-          <div class="mt-2 text-xs text-monitor-text-muted">
-            <template v-if="selectedWrapper.state === 'waiting_input'">
-              Press Enter to send, Shift+Enter for new line
-            </template>
-            <template v-else-if="selectedWrapper.state === 'processing'">
-              Claude is processing...
-            </template>
-            <template v-else>
-              Wrapper is {{ selectedWrapper.state }}
-            </template>
-          </div>
-        </div>
+          ref="terminalContainerRef"
+          class="flex-1 overflow-hidden"
+          @click="() => {
+            const termData = terminals.get(store.selectedWrapperId || '');
+            if (termData) termData.terminal.focus();
+          }"
+        ></div>
       </div>
 
       <!-- No selection message -->
@@ -200,3 +297,19 @@ function getStateIcon(state: string): string {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Ensure xterm.js container fills space properly */
+:deep(.xterm) {
+  height: 100%;
+  padding: 4px;
+}
+
+:deep(.xterm-viewport) {
+  overflow-y: auto !important;
+}
+
+:deep(.xterm-screen) {
+  height: 100%;
+}
+</style>

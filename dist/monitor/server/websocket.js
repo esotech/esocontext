@@ -152,11 +152,19 @@ class MonitorWebSocketServer {
                 break;
             case 'inject_input':
                 // Forward input injection to daemon via broker
-                console.log(`[WebSocket] Injecting input to wrapper ${message.wrapperId}`);
                 this.broker.sendToDaemon({
                     type: 'inject_input',
                     wrapperId: message.wrapperId,
                     input: message.input,
+                });
+                break;
+            case 'resize_wrapper':
+                // Forward resize to daemon via broker
+                this.broker.sendToDaemon({
+                    type: 'resize_wrapper',
+                    wrapperId: message.wrapperId,
+                    cols: message.cols,
+                    rows: message.rows,
                 });
                 break;
             case 'get_wrappers':

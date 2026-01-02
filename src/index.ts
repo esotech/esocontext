@@ -18,7 +18,7 @@ import {
     monitorDaemonStatusCommand,
     monitorDaemonLogsCommand
 } from './commands/monitor';
-import { claudeCommand } from './commands/claude';
+import { claudeCommand, listWrappersCommand, killWrapperCommand } from './commands/claude';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -224,5 +224,21 @@ program
     .action((args) => {
         claudeCommand(args);
     });
+
+// Wrapper command group - manage Claude wrapper sessions
+const wrapper = program
+    .command('wrapper')
+    .description('Manage Claude wrapper sessions');
+
+wrapper
+    .command('list')
+    .description('List active wrapper sessions')
+    .action(listWrappersCommand);
+
+wrapper
+    .command('kill')
+    .argument('<wrapperId>', 'Wrapper ID to kill')
+    .description('Kill a wrapper session')
+    .action(killWrapperCommand);
 
 program.parse();

@@ -188,8 +188,23 @@ export class MonitorWebSocketServer {
         break;
 
       case 'send_input':
-        // TODO: Implement input forwarding to Claude sessions
+        // Legacy - kept for backward compatibility
         console.log(`[WebSocket] Input for session ${message.sessionId}: ${message.input}`);
+        break;
+
+      case 'inject_input':
+        // Forward input injection to daemon via broker
+        console.log(`[WebSocket] Injecting input to wrapper ${message.wrapperId}`);
+        this.broker.sendToDaemon({
+          type: 'inject_input',
+          wrapperId: message.wrapperId,
+          input: message.input,
+        });
+        break;
+
+      case 'get_wrappers':
+        // Request current wrapper list (not implemented yet - daemon would need to track)
+        console.log(`[WebSocket] Get wrappers request`);
         break;
 
       case 'hide_session':
@@ -361,7 +376,7 @@ export class MonitorWebSocketServer {
   /**
    * Handle events from the broker
    */
-  private handleBrokerEvent(type: BrokerEventType, data: MonitorEvent | SessionMeta): void {
+  private handleBrokerEvent(type: BrokerEventType, data: MonitorEvent | SessionMeta | any): void {
     switch (type) {
       case 'event':
         this.broadcastEvent(data as MonitorEvent);
@@ -372,6 +387,49 @@ export class MonitorWebSocketServer {
       case 'session_ended':
         this.broadcastSessionUpdate(data as SessionMeta);
         break;
+
+      case 'wrapper_connected':
+        this.broadcastToAll({
+          type: 'wrapper_connected',
+          wrapperId: data.wrapperId,
+          state: data.state,
+        });
+        break;
+
+      case 'wrapper_disconnected':
+        this.broadcastToAll({
+          type: 'wrapper_disconnected',
+          wrapperId: data.wrapperId,
+          exitCode: data.exitCode,
+        });
+        break;
+
+      case 'wrapper_state':
+        this.broadcastToAll({
+          type: 'wrapper_state',
+          wrapperId: data.wrapperId,
+          state: data.state,
+          claudeSessionId: data.claudeSessionId,
+        });
+        break;
+
+      case 'wrapper_output':
+        this.broadcastToAll({
+          type: 'wrapper_output',
+          wrapperId: data.wrapperId,
+          data: data.data,
+          timestamp: data.timestamp,
+        });
+        break;
+    }
+  }
+
+  /**
+   * Broadcast a message to all connected clients
+   */
+  private broadcastToAll(message: ServerMessage): void {
+    for (const [, client] of this.clients) {
+      client.send(message);
     }
   }
 

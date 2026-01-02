@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useMonitorStore } from './stores/monitor';
 import SessionList from './components/SessionList.vue';
 import EventStream from './components/EventStream.vue';
@@ -7,8 +7,10 @@ import ToolTimeline from './components/ToolTimeline.vue';
 import TokenMetrics from './components/TokenMetrics.vue';
 import ModeIndicator from './components/ModeIndicator.vue';
 import FilterBar from './components/FilterBar.vue';
+import WrapperPanel from './components/WrapperPanel.vue';
 
 const store = useMonitorStore();
+const showWrapperPanel = ref(false);
 
 const connectionStatusClass = computed(() => {
   switch (store.connectionStatus) {
@@ -76,6 +78,21 @@ onUnmounted(() => {
           <span class="text-monitor-text-muted text-sm">
             {{ store.sessions.length }} session(s)
           </span>
+          <!-- Wrapper toggle button -->
+          <button
+            class="flex items-center space-x-2 px-3 py-1 rounded text-sm transition-colors"
+            :class="[
+              store.activeWrappers.length > 0
+                ? 'bg-green-600 text-white hover:bg-green-500'
+                : showWrapperPanel
+                  ? 'bg-monitor-accent-cyan text-white'
+                  : 'bg-slate-700 text-monitor-text-secondary hover:bg-slate-600'
+            ]"
+            @click="showWrapperPanel = !showWrapperPanel"
+          >
+            <span v-if="store.activeWrappers.length > 0" class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+            <span>Wrappers ({{ store.activeWrappers.length }})</span>
+          </button>
         </div>
       </div>
     </header>
@@ -103,8 +120,16 @@ onUnmounted(() => {
         </div>
 
         <!-- Event Stream -->
-        <div class="flex-1 overflow-hidden">
+        <div class="flex-1 overflow-hidden" :class="{ 'h-1/2': showWrapperPanel }">
           <EventStream />
+        </div>
+
+        <!-- Wrapper Panel (collapsible) -->
+        <div
+          v-if="showWrapperPanel"
+          class="h-1/2 border-t border-slate-700 flex flex-col"
+        >
+          <WrapperPanel />
         </div>
       </div>
 

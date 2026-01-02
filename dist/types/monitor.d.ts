@@ -248,7 +248,35 @@ export type ClientMessage = {
     type: 'rename_session';
     sessionId: string;
     label: string;
+} | {
+    type: 'get_wrappers';
+} | {
+    type: 'inject_input';
+    wrapperId: string;
+    input: string;
 };
+/**
+ * Wrapper session state
+ */
+export type WrapperState = 'starting' | 'processing' | 'waiting_input' | 'ended';
+/**
+ * Wrapper session info (for UI)
+ */
+export interface WrapperInfo {
+    wrapperId: string;
+    state: WrapperState;
+    claudeSessionId: string | null;
+    cwd?: string;
+    startTime?: number;
+}
+/**
+ * Wrapper terminal output chunk
+ */
+export interface WrapperOutput {
+    wrapperId: string;
+    data: string;
+    timestamp: number;
+}
 /**
  * Server to client message types
  */
@@ -277,6 +305,27 @@ export type ServerMessage = {
 } | {
     type: 'error';
     message: string;
+} | {
+    type: 'wrappers';
+    wrappers: WrapperInfo[];
+} | {
+    type: 'wrapper_connected';
+    wrapperId: string;
+    state: WrapperState;
+} | {
+    type: 'wrapper_disconnected';
+    wrapperId: string;
+    exitCode?: number;
+} | {
+    type: 'wrapper_state';
+    wrapperId: string;
+    state: WrapperState;
+    claudeSessionId?: string;
+} | {
+    type: 'wrapper_output';
+    wrapperId: string;
+    data: string;
+    timestamp: number;
 };
 /**
  * Event handler callback

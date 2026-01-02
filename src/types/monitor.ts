@@ -313,7 +313,34 @@ export type ClientMessage =
   | { type: 'set_parent'; sessionId: string; parentSessionId: string | null }
   | { type: 'toggle_pin'; sessionId: string }
   | { type: 'set_user_initiated'; sessionId: string; isUserInitiated: boolean }
-  | { type: 'rename_session'; sessionId: string; label: string };
+  | { type: 'rename_session'; sessionId: string; label: string }
+  | { type: 'get_wrappers' }
+  | { type: 'inject_input'; wrapperId: string; input: string };
+
+/**
+ * Wrapper session state
+ */
+export type WrapperState = 'starting' | 'processing' | 'waiting_input' | 'ended';
+
+/**
+ * Wrapper session info (for UI)
+ */
+export interface WrapperInfo {
+  wrapperId: string;
+  state: WrapperState;
+  claudeSessionId: string | null;
+  cwd?: string;
+  startTime?: number;
+}
+
+/**
+ * Wrapper terminal output chunk
+ */
+export interface WrapperOutput {
+  wrapperId: string;
+  data: string;
+  timestamp: number;
+}
 
 /**
  * Server to client message types
@@ -326,7 +353,12 @@ export type ServerMessage =
   | { type: 'events'; sessionId: string; events: MonitorEvent[] }
   | { type: 'all_events'; events: MonitorEvent[] }
   | { type: 'event_detail'; event: MonitorEvent }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  | { type: 'wrappers'; wrappers: WrapperInfo[] }
+  | { type: 'wrapper_connected'; wrapperId: string; state: WrapperState }
+  | { type: 'wrapper_disconnected'; wrapperId: string; exitCode?: number }
+  | { type: 'wrapper_state'; wrapperId: string; state: WrapperState; claudeSessionId?: string }
+  | { type: 'wrapper_output'; wrapperId: string; data: string; timestamp: number };
 
 // =============================================================================
 // IPC Adapter Types

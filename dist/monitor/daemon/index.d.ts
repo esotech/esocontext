@@ -21,6 +21,7 @@ export declare class MonitorDaemon {
     private notifier;
     private socketServer;
     private uiClients;
+    private wrapperSessions;
     private running;
     constructor(config: MonitorConfig);
     /**
@@ -43,6 +44,43 @@ export declare class MonitorDaemon {
      * Start Unix socket server for hook notifications and UI clients
      */
     private startSocketServer;
+    /**
+     * Handle wrapper registration
+     */
+    private handleWrapperRegister;
+    /**
+     * Handle wrapper started notification
+     */
+    private handleWrapperStarted;
+    /**
+     * Handle wrapper ended notification
+     */
+    private handleWrapperEnded;
+    /**
+     * Handle wrapper state change
+     */
+    private handleWrapperStateChange;
+    /**
+     * Handle wrapper output (for session log)
+     */
+    private handleWrapperOutput;
+    /**
+     * Handle input injection request from UI
+     */
+    private handleInputInjection;
+    /**
+     * Check if a hook event indicates waiting for input
+     * and notify relevant wrapper
+     */
+    private checkAndNotifyWrapperState;
+    /**
+     * Get list of active wrapper sessions (for UI)
+     */
+    getWrapperSessions(): Array<{
+        wrapperId: string;
+        state: string;
+        claudeSessionId: string | null;
+    }>;
 }
 /**
  * Start the daemon (exported for CLI)

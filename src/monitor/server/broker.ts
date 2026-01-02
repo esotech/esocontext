@@ -25,9 +25,22 @@ export type BrokerEventType =
   | 'event'
   | 'session_created'
   | 'session_updated'
-  | 'session_ended';
+  | 'session_ended'
+  | 'wrapper_connected'
+  | 'wrapper_disconnected'
+  | 'wrapper_state'
+  | 'wrapper_output';
 
-export type BrokerHandler = (type: BrokerEventType, data: MonitorEvent | SessionMeta) => void | Promise<void>;
+export interface WrapperEventData {
+  wrapperId: string;
+  state?: string;
+  claudeSessionId?: string;
+  exitCode?: number;
+  data?: string;
+  timestamp?: number;
+}
+
+export type BrokerHandler = (type: BrokerEventType, data: MonitorEvent | SessionMeta | WrapperEventData) => void | Promise<void>;
 
 export class EventBroker {
   private daemonSocket: net.Socket | null = null;
@@ -170,10 +183,47 @@ export class EventBroker {
       } else {
         this.emit('session_updated', session);
       }
+    } else if (message.type === 'wrapper_connected') {
+      // Wrapper session connected
+      this.emit('wrapper_connected', {
+        wrapperId: message.wrapperId,
+        state: message.state,
+      });
+    } else if (message.type === 'wrapper_disconnected') {
+      // Wrapper session disconnected
+      this.emit('wrapper_disconnected', {
+        wrapperId: message.wrapperId,
+        exitCode: message.exitCode,
+      });
+    } else if (message.type === 'wrapper_state') {
+      // Wrapper state changed
+      this.emit('wrapper_state', {
+        wrapperId: message.wrapperId,
+        state: message.state,
+        claudeSessionId: message.claudeSessionId,
+      });
+    } else if (message.type === 'wrapper_output') {
+      // Wrapper terminal output
+      this.emit('wrapper_output', {
+        wrapperId: message.wrapperId,
+        data: message.data,
+        timestamp: message.timestamp,
+      });
     } else if (message.eventType) {
       // This is an event from the daemon
       const event = message as MonitorEvent;
       this.emit('event', event);
+    }
+  }
+
+  /**
+   * Send a message to the daemon
+   */
+  sendToDaemon(message: any): void {
+    if (this.daemonSocket && this.daemonSocket.writable) {
+      this.daemonSocket.write(JSON.stringify(message) + '\n');
+    } else {
+      console.error('[Broker] Cannot send to daemon - not connected');
     }
   }
 
@@ -226,7 +276,7 @@ export class EventBroker {
   /**
    * Emit event to all handlers
    */
-  private emit(type: BrokerEventType, data: MonitorEvent | SessionMeta): void {
+  private emit(type: BrokerEventType, data: MonitorEvent | SessionMeta | WrapperEventData): void {
     this.handlers.forEach((handler) => {
       try {
         const result = handler(type, data);

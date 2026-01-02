@@ -54,6 +54,10 @@ export declare class MonitorWebSocketServer {
      */
     private handleBrokerEvent;
     /**
+     * Broadcast a message to all connected clients
+     */
+    private broadcastToAll;
+    /**
      * Broadcast an event to subscribed clients
      */
     private broadcastEvent;

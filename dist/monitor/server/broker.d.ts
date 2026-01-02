@@ -13,8 +13,16 @@
  * Note: Event processing (correlation, parent linking, etc.) is handled by the daemon.
  */
 import type { MonitorEvent, SessionMeta, PersistenceStore, MonitorConfig } from '../../types/monitor';
-export type BrokerEventType = 'event' | 'session_created' | 'session_updated' | 'session_ended';
-export type BrokerHandler = (type: BrokerEventType, data: MonitorEvent | SessionMeta) => void | Promise<void>;
+export type BrokerEventType = 'event' | 'session_created' | 'session_updated' | 'session_ended' | 'wrapper_connected' | 'wrapper_disconnected' | 'wrapper_state' | 'wrapper_output';
+export interface WrapperEventData {
+    wrapperId: string;
+    state?: string;
+    claudeSessionId?: string;
+    exitCode?: number;
+    data?: string;
+    timestamp?: number;
+}
+export type BrokerHandler = (type: BrokerEventType, data: MonitorEvent | SessionMeta | WrapperEventData) => void | Promise<void>;
 export declare class EventBroker {
     private daemonSocket;
     private persistence;
@@ -45,6 +53,10 @@ export declare class EventBroker {
      * Handle message from daemon
      */
     private handleDaemonMessage;
+    /**
+     * Send a message to the daemon
+     */
+    sendToDaemon(message: any): void;
     /**
      * Set the persistence store
      */

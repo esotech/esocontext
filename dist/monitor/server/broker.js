@@ -168,10 +168,51 @@ class EventBroker {
                 this.emit('session_updated', session);
             }
         }
+        else if (message.type === 'wrapper_connected') {
+            // Wrapper session connected
+            this.emit('wrapper_connected', {
+                wrapperId: message.wrapperId,
+                state: message.state,
+            });
+        }
+        else if (message.type === 'wrapper_disconnected') {
+            // Wrapper session disconnected
+            this.emit('wrapper_disconnected', {
+                wrapperId: message.wrapperId,
+                exitCode: message.exitCode,
+            });
+        }
+        else if (message.type === 'wrapper_state') {
+            // Wrapper state changed
+            this.emit('wrapper_state', {
+                wrapperId: message.wrapperId,
+                state: message.state,
+                claudeSessionId: message.claudeSessionId,
+            });
+        }
+        else if (message.type === 'wrapper_output') {
+            // Wrapper terminal output
+            this.emit('wrapper_output', {
+                wrapperId: message.wrapperId,
+                data: message.data,
+                timestamp: message.timestamp,
+            });
+        }
         else if (message.eventType) {
             // This is an event from the daemon
             const event = message;
             this.emit('event', event);
+        }
+    }
+    /**
+     * Send a message to the daemon
+     */
+    sendToDaemon(message) {
+        if (this.daemonSocket && this.daemonSocket.writable) {
+            this.daemonSocket.write(JSON.stringify(message) + '\n');
+        }
+        else {
+            console.error('[Broker] Cannot send to daemon - not connected');
         }
     }
     /**

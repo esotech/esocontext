@@ -18,6 +18,7 @@ import {
     monitorDaemonStatusCommand,
     monitorDaemonLogsCommand
 } from './commands/monitor';
+import { claudeCommand } from './commands/claude';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -212,6 +213,16 @@ daemon
             follow: options.follow,
             lines: parseInt(options.lines)
         });
+    });
+
+// Claude wrapper command - wraps Claude CLI with PTY for monitor integration
+program
+    .command('claude')
+    .description('Run Claude Code with monitor integration (PTY wrapper)')
+    .argument('[args...]', 'Arguments to pass to Claude CLI')
+    .allowUnknownOption(true)
+    .action((args) => {
+        claudeCommand(args);
     });
 
 program.parse();

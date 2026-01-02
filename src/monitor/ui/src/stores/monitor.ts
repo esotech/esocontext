@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { MonitorEvent, SessionMeta, ServerMessage, ClientMessage, MonitorEventType } from '../../../../types/monitor';
+import type { MonitorEvent, SessionMeta, ServerMessage, ClientMessage, MonitorEventType, WrapperInfo, WrapperState } from '../../../../types/monitor';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 
@@ -34,6 +34,11 @@ export const useMonitorStore = defineStore('monitor', () => {
   const hiddenSessionIds = ref<Set<string>>(new Set());
   const eventDetails = ref<Map<string, MonitorEvent>>(new Map());
   const loadingDetails = ref<Set<string>>(new Set());
+
+  // Wrapper state
+  const wrappers = ref<WrapperInfo[]>([]);
+  const selectedWrapperId = ref<string | null>(null);
+  const wrapperOutputBuffers = ref<Map<string, string[]>>(new Map());
 
   // Filter state
   const filters = ref<FilterState>({
@@ -303,6 +308,54 @@ export const useMonitorStore = defineStore('monitor', () => {
       case 'error':
         console.error('Server error:', message.message);
         break;
+
+      // Wrapper messages
+      case 'wrappers':
+        wrappers.value = message.wrappers;
+        break;
+
+      case 'wrapper_connected':
+        console.log(`[Monitor] Wrapper connected: ${message.wrapperId}`);
+        wrappers.value.push({
+          wrapperId: message.wrapperId,
+          state: message.state,
+          claudeSessionId: null,
+        });
+        // Initialize output buffer
+        wrapperOutputBuffers.value.set(message.wrapperId, []);
+        break;
+
+      case 'wrapper_disconnected':
+        console.log(`[Monitor] Wrapper disconnected: ${message.wrapperId}`);
+        wrappers.value = wrappers.value.filter(w => w.wrapperId !== message.wrapperId);
+        wrapperOutputBuffers.value.delete(message.wrapperId);
+        if (selectedWrapperId.value === message.wrapperId) {
+          selectedWrapperId.value = null;
+        }
+        break;
+
+      case 'wrapper_state':
+        console.log(`[Monitor] Wrapper ${message.wrapperId} state: ${message.state}`);
+        const wrapperIdx = wrappers.value.findIndex(w => w.wrapperId === message.wrapperId);
+        if (wrapperIdx >= 0) {
+          wrappers.value[wrapperIdx].state = message.state;
+          if (message.claudeSessionId) {
+            wrappers.value[wrapperIdx].claudeSessionId = message.claudeSessionId;
+          }
+        }
+        break;
+
+      case 'wrapper_output':
+        // Buffer output for display
+        const buffer = wrapperOutputBuffers.value.get(message.wrapperId);
+        if (buffer) {
+          buffer.push(message.data);
+          // Keep buffer size reasonable (last 1000 lines worth)
+          if (buffer.length > 1000) {
+            buffer.splice(0, buffer.length - 1000);
+          }
+        }
+        break;
     }
   }
 
@@ -432,6 +485,48 @@ export const useMonitorStore = defineStore('monitor', () => {
     return eventDetails.value.get(eventId);
   }
 
+  // Wrapper actions
+  function selectWrapper(wrapperId: string | null) {
+    selectedWrapperId.value = wrapperId;
+  }
+
+  function injectInput(wrapperId: string, input: string) {
+    const wrapper = wrappers.value.find(w => w.wrapperId === wrapperId);
+    if (!wrapper) {
+      console.error(`[Monitor] Wrapper not found: ${wrapperId}`);
+      return;
+    }
+
+    if (wrapper.state !== 'waiting_input') {
+      console.error(`[Monitor] Wrapper ${wrapperId} not waiting for input (state: ${wrapper.state})`);
+      return;
+    }
+
+    console.log(`[Monitor] Injecting input to wrapper ${wrapperId}: ${input.slice(0, 50)}...`);
+    send({ type: 'inject_input', wrapperId, input });
+  }
+
+  function getWrapperOutput(wrapperId: string): string {
+    const buffer = wrapperOutputBuffers.value.get(wrapperId);
+    return buffer ? buffer.join('') : '';
+  }
+
+  // Computed for selected wrapper
+  const selectedWrapper = computed(() => {
+    if (!selectedWrapperId.value) return null;
+    return wrappers.value.find(w => w.wrapperId === selectedWrapperId.value) || null;
+  });
+
+  // Active wrappers (not ended)
+  const activeWrappers = computed(() => {
+    return wrappers.value.filter(w => w.state !== 'ended');
+  });
+
+  // Wrappers waiting for input
+  const wrappersWaitingInput = computed(() => {
+    return wrappers.value.filter(w => w.state === 'waiting_input');
+  });
+
   return {
     // State
     connectionStatus,
@@ -448,6 +543,9 @@ export const useMonitorStore = defineStore('monitor', () => {
     draggedSessionId,
     eventDetails,
     loadingDetails,
+    wrappers,
+    selectedWrapperId,
+    wrapperOutputBuffers,
 
     // Computed
     selectedSession,
@@ -456,6 +554,9 @@ export const useMonitorStore = defineStore('monitor', () => {
     sessionHierarchy,
     toolEvents,
     tokenTotals,
+    selectedWrapper,
+    activeWrappers,
+    wrappersWaitingInput,
 
     // Actions
     connect,
@@ -482,5 +583,8 @@ export const useMonitorStore = defineStore('monitor', () => {
     setDraggedSession,
     requestEventDetail,
     getEventDetail,
+    selectWrapper,
+    injectInput,
+    getWrapperOutput,
   };
 });

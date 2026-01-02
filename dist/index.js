@@ -10,6 +10,7 @@ const index_1 = require("./commands/index");
 const context_1 = require("./commands/context");
 const install_1 = require("./commands/install");
 const monitor_1 = require("./commands/monitor");
+const claude_1 = require("./commands/claude");
 const fs_1 = require("fs");
 const path_1 = require("path");
 const program = new commander_1.Command();
@@ -181,5 +182,14 @@ daemon
         follow: options.follow,
         lines: parseInt(options.lines)
     });
+});
+// Claude wrapper command - wraps Claude CLI with PTY for monitor integration
+program
+    .command('claude')
+    .description('Run Claude Code with monitor integration (PTY wrapper)')
+    .argument('[args...]', 'Arguments to pass to Claude CLI')
+    .allowUnknownOption(true)
+    .action((args) => {
+    (0, claude_1.claudeCommand)(args);
 });
 program.parse();

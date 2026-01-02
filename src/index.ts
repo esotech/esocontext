@@ -171,8 +171,8 @@ monitor
     .description('Show monitor server status')
     .action(monitorStatusCommand);
 
-// Daemon subcommand group
-const daemon = monitor
+// Daemon command group (top-level)
+const daemon = program
     .command('daemon')
     .description('Manage the monitor daemon');
 

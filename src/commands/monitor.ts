@@ -556,23 +556,17 @@ export async function monitorStartCommand(options: {
  * Stop monitor server command
  */
 export async function monitorStopCommand(options: { all?: boolean }): Promise<void> {
-    console.log(chalk.blue('[INFO] Stopping monitor server...'));
+    // The UI server typically runs in foreground, so users stop it with Ctrl+C.
+    // This command is primarily for stopping the daemon when --all is specified.
 
-    // The UI server is typically running in foreground, so this command
-    // primarily stops the daemon. If the UI server is running, the user
-    // would typically use Ctrl+C to stop it.
-
-    // Check if daemon is running and stop it
-    const pid = await getDaemonPid();
-
-    if (options.all || pid) {
+    if (options.all) {
+        console.log(chalk.blue('[INFO] Stopping daemon...'));
         await monitorDaemonStopCommand();
+        console.log(chalk.green('[OK] Daemon stopped'));
+    } else {
+        console.log(chalk.blue('[INFO] UI server runs in foreground - use Ctrl+C to stop it'));
+        console.log(chalk.blue('[INFO] To stop the background daemon, use: contextuate monitor stop --all'));
     }
-
-    // Note: The UI server doesn't have a PID file since it typically runs in foreground
-    // If we want to support background UI server, we'd add that logic here
-
-    console.log(chalk.green('[OK] Monitor stopped'));
 }
 
 /**

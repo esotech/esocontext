@@ -99,8 +99,45 @@ export class MonitorDaemon {
 
     // Close socket server
     if (this.socketServer) {
-      this.socketServer.close();
-      this.socketServer = null;
+      // Forcefully disconnect all UI clients
+      for (const client of this.uiClients) {
+        try {
+          client.write(JSON.stringify({ type: 'error', message: 'Daemon shutting down' }) + '\n');
+          client.destroy(); // Force close the connection
+        } catch (err) {
+          // Ignore errors during shutdown
+        }
+      }
+
+      await new Promise<void>((resolve) => {
+        // Add timeout to force resolve if close takes too long
+        const timeout = setTimeout(() => {
+          console.log('[Daemon] Socket server close timeout, forcing shutdown');
+          this.socketServer = null;
+          this.uiClients.clear();
+          // Clean up socket file
+          try {
+            fs.unlinkSync('/tmp/contextuate-daemon.sock');
+          } catch (err) {
+            // Ignore if already removed
+          }
+          resolve();
+        }, 3000);
+
+        this.socketServer!.close(() => {
+          clearTimeout(timeout);
+          this.socketServer = null;
+          this.uiClients.clear();
+          console.log('[Daemon] Socket server stopped');
+          // Clean up socket file
+          try {
+            fs.unlinkSync('/tmp/contextuate-daemon.sock');
+          } catch (err) {
+            // Ignore if already removed
+          }
+          resolve();
+        });
+      });
     }
 
     console.log('[Daemon] Monitor daemon stopped');

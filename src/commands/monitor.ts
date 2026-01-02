@@ -471,6 +471,7 @@ export async function monitorStartCommand(options: {
     port?: number;
     wsPort?: number;
     noOpen?: boolean;
+    foreground?: boolean;
 }): Promise<void> {
     // Attempt migration from old structure
     await migrateToNewStructure();
@@ -497,14 +498,46 @@ export async function monitorStartCommand(options: {
         config.server.wsPort = options.wsPort;
     }
 
-    // Auto-start daemon if not running or not responding
+    // Auto-start daemon if not running
     await ensureDaemonRunning(config);
 
-    console.log(chalk.blue('[INFO] Starting Contextuate Monitor...'));
+    // Check if server is already running
+    const serverPid = await getServerPid();
+    if (serverPid && isProcessRunning(serverPid)) {
+        console.log(chalk.blue(`[Info] Server already running (PID: ${serverPid})`));
+        const url = `http://localhost:${config.server.port}`;
+        if (!options.noOpen) {
+            openBrowser(url);
+        }
+        console.log(chalk.green(`[OK] Monitor: ${url}`));
+        process.exit(0);
+    }
+
+    // Clean up stale PID file if server not running
+    if (serverPid) {
+        await fs.remove(PATHS.serverPidFile);
+    }
+
+    // Run in foreground mode if requested
+    if (options.foreground) {
+        await runServerForeground(config, options);
+        return;
+    }
+
+    // Start server in background
+    await startServerBackground(config, options);
+}
+
+/**
+ * Run the server in foreground mode (blocking)
+ */
+async function runServerForeground(config: MonitorConfig, options: {
+    noOpen?: boolean;
+}): Promise<void> {
+    console.log(chalk.blue('[INFO] Starting Contextuate Monitor in foreground...'));
     console.log('');
 
     try {
-        // Dynamically import the server module
         const { createMonitorServer } = await import('../monitor/server');
 
         const server = await createMonitorServer({
@@ -513,23 +546,9 @@ export async function monitorStartCommand(options: {
         });
         await server.start();
 
-        // Open browser if not disabled
+        const url = `http://localhost:${config.server.port}`;
         if (!options.noOpen) {
-            const url = `http://localhost:${config.server.port}`;
-            console.log(chalk.blue(`[INFO] Opening browser: ${url}`));
-
-            // Platform-specific browser open
-            const { exec } = await import('child_process');
-            const platform = process.platform;
-            const command = platform === 'darwin' ? 'open' :
-                platform === 'win32' ? 'start' : 'xdg-open';
-
-            exec(`${command} ${url}`, (err) => {
-                if (err) {
-                    console.log(chalk.yellow(`[WARN] Could not open browser automatically.`));
-                    console.log(chalk.yellow(`       Please open ${url} manually.`));
-                }
-            });
+            openBrowser(url);
         }
 
         // Handle shutdown signals
@@ -543,7 +562,6 @@ export async function monitorStartCommand(options: {
         process.on('SIGINT', shutdown);
         process.on('SIGTERM', shutdown);
 
-        // Keep running
         console.log(chalk.green('[OK] Monitor is running. Press Ctrl+C to stop.'));
 
     } catch (err: any) {
@@ -553,19 +571,186 @@ export async function monitorStartCommand(options: {
 }
 
 /**
+ * Start the server in background mode (non-blocking)
+ */
+async function startServerBackground(config: MonitorConfig, options: {
+    port?: number;
+    wsPort?: number;
+    noOpen?: boolean;
+}): Promise<void> {
+    console.log(chalk.blue('[INFO] Starting Contextuate Monitor...'));
+
+    // Find the server CLI entry point
+    let serverPath = path.join(__dirname, '..', 'monitor', 'server', 'cli.js');
+    if (!await fs.pathExists(serverPath)) {
+        const alternatives = [
+            path.join(__dirname, '..', '..', 'dist', 'monitor', 'server', 'cli.js'),
+            path.join(__dirname, 'monitor', 'server', 'cli.js'),
+        ];
+        for (const altPath of alternatives) {
+            if (await fs.pathExists(altPath)) {
+                serverPath = altPath;
+                break;
+            }
+        }
+    }
+
+    if (!await fs.pathExists(serverPath)) {
+        console.log(chalk.red(`[Error] Server CLI not found at ${serverPath}`));
+        console.log(chalk.yellow('[Info] Try running: npm run build'));
+        return;
+    }
+
+    // Build command arguments
+    const args = [
+        serverPath,
+        '--config', PATHS.configFile,
+    ];
+    if (options.port) {
+        args.push('--port', options.port.toString());
+    }
+    if (options.wsPort) {
+        args.push('--ws-port', options.wsPort.toString());
+    }
+
+    // Ensure log directory exists and open log file
+    await fs.ensureDir(path.dirname(PATHS.serverLogFile));
+    const logFd = fs.openSync(PATHS.serverLogFile, 'a');
+
+    const child = spawn(process.execPath, args, {
+        detached: true,
+        stdio: ['ignore', logFd, logFd],
+    });
+
+    // Close file descriptor in parent
+    fs.closeSync(logFd);
+
+    // Write PID file
+    await fs.writeFile(PATHS.serverPidFile, child.pid!.toString());
+
+    child.unref();
+
+    // Wait briefly for server to start
+    await new Promise(r => setTimeout(r, 1500));
+
+    // Verify server started successfully
+    const url = `http://localhost:${config.server.port}`;
+    try {
+        const response = await fetch(`${url}/api/status`);
+        if (response.ok) {
+            console.log(chalk.green(`[OK] Server started (PID: ${child.pid})`));
+        } else {
+            console.log(chalk.yellow(`[WARN] Server may not have started properly. Check logs: ${PATHS.serverLogFile}`));
+        }
+    } catch {
+        console.log(chalk.yellow(`[WARN] Could not verify server. Check logs: ${PATHS.serverLogFile}`));
+    }
+
+    // Open browser
+    if (!options.noOpen) {
+        openBrowser(url);
+    }
+
+    console.log('');
+    console.log(chalk.green(`Monitor: ${url}`));
+    console.log(chalk.blue(`Logs:    ${PATHS.serverLogFile}`));
+    console.log('');
+    console.log(`To stop: ${chalk.cyan('contextuate monitor stop')}`);
+
+    // Exit cleanly - background processes are now running independently
+    process.exit(0);
+}
+
+/**
+ * Open browser to URL (fire-and-forget, doesn't block)
+ */
+function openBrowser(url: string): void {
+    const platform = process.platform;
+    const command = platform === 'darwin' ? 'open' :
+        platform === 'win32' ? 'cmd' : 'xdg-open';
+    const args = platform === 'win32' ? ['/c', 'start', '', url] : [url];
+
+    try {
+        const child = spawn(command, args, {
+            detached: true,
+            stdio: 'ignore',
+        });
+        child.unref();
+    } catch (err) {
+        console.log(chalk.yellow(`[WARN] Could not open browser. Please open ${url} manually.`));
+    }
+}
+
+/**
+ * Get server PID from PID file
+ */
+async function getServerPid(): Promise<number | null> {
+    try {
+        const pidStr = await fs.readFile(PATHS.serverPidFile, 'utf-8');
+        return parseInt(pidStr.trim(), 10);
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Stop monitor server command
  */
 export async function monitorStopCommand(options: { all?: boolean }): Promise<void> {
-    // The UI server typically runs in foreground, so users stop it with Ctrl+C.
-    // This command is primarily for stopping the daemon when --all is specified.
+    let stoppedServer = false;
+    let stoppedDaemon = false;
 
-    if (options.all) {
-        console.log(chalk.blue('[INFO] Stopping daemon...'));
-        await monitorDaemonStopCommand();
-        console.log(chalk.green('[OK] Daemon stopped'));
+    // Stop UI server
+    const serverPid = await getServerPid();
+    if (serverPid && isProcessRunning(serverPid)) {
+        console.log(chalk.blue(`[INFO] Stopping UI server (PID: ${serverPid})...`));
+        try {
+            process.kill(serverPid, 'SIGTERM');
+
+            // Wait for process to exit
+            let attempts = 0;
+            while (isProcessRunning(serverPid) && attempts < 10) {
+                await new Promise(r => setTimeout(r, 500));
+                attempts++;
+            }
+
+            if (isProcessRunning(serverPid)) {
+                console.log(chalk.yellow('[WARN] Server still running, sending SIGKILL'));
+                process.kill(serverPid, 'SIGKILL');
+            }
+
+            await fs.remove(PATHS.serverPidFile);
+            console.log(chalk.green('[OK] UI server stopped'));
+            stoppedServer = true;
+        } catch (err: any) {
+            console.error(chalk.red(`[ERROR] Failed to stop server: ${err.message}`));
+        }
     } else {
-        console.log(chalk.blue('[INFO] UI server runs in foreground - use Ctrl+C to stop it'));
-        console.log(chalk.blue('[INFO] To stop the background daemon, use: contextuate monitor stop --all'));
+        if (serverPid) {
+            // Clean up stale PID file
+            await fs.remove(PATHS.serverPidFile);
+        }
+        console.log(chalk.blue('[INFO] UI server not running'));
+    }
+
+    // Stop daemon if --all flag is specified
+    if (options.all) {
+        const daemonPid = await getDaemonPid();
+        if (daemonPid && isProcessRunning(daemonPid)) {
+            console.log(chalk.blue(`[INFO] Stopping daemon (PID: ${daemonPid})...`));
+            await monitorDaemonStopCommand();
+            stoppedDaemon = true;
+        } else {
+            console.log(chalk.blue('[INFO] Daemon not running'));
+        }
+    }
+
+    if (!stoppedServer && !stoppedDaemon) {
+        console.log('');
+        console.log(chalk.blue('[INFO] Nothing to stop'));
+        if (!options.all) {
+            console.log(chalk.blue('[INFO] Use --all to also stop the daemon'));
+        }
     }
 }
 
@@ -615,6 +800,7 @@ export async function monitorStatusCommand(): Promise<void> {
 
     // Check if server is running
     console.log(chalk.white('UI Server Status:'));
+    const serverPid = await getServerPid();
 
     try {
         const response = await fetch(`http://localhost:${config.server.port}/api/status`);
@@ -625,7 +811,7 @@ export async function monitorStatusCommand(): Promise<void> {
                 activeSessions: number;
                 uptime: number;
             };
-            console.log(`  Status:      ${chalk.green('Running')}`);
+            console.log(`  Status:      ${chalk.green('Running')}${serverPid ? ` (PID: ${serverPid})` : ''}`);
             console.log(`  Sessions:    ${chalk.cyan(status.sessions)} total, ${chalk.cyan(status.activeSessions)} active`);
             console.log(`  Uptime:      ${chalk.cyan(formatUptime(status.uptime))}`);
             console.log('');
@@ -634,9 +820,17 @@ export async function monitorStatusCommand(): Promise<void> {
             console.log(`  Status:      ${chalk.red('Error (HTTP ' + response.status + ')')}`);
         }
     } catch (err) {
-        console.log(`  Status:      ${chalk.yellow('Not running')}`);
-        console.log('');
-        console.log(`Start with: ${chalk.cyan('contextuate monitor')}`);
+        if (serverPid && isProcessRunning(serverPid)) {
+            console.log(`  Status:      ${chalk.yellow('Starting...')} (PID: ${serverPid})`);
+        } else {
+            if (serverPid) {
+                // Clean up stale PID file
+                await fs.remove(PATHS.serverPidFile);
+            }
+            console.log(`  Status:      ${chalk.yellow('Not running')}`);
+            console.log('');
+            console.log(`Start with: ${chalk.cyan('contextuate monitor')}`);
+        }
     }
 
     console.log('');
@@ -766,21 +960,24 @@ export async function monitorDaemonStartCommand(options: { detach?: boolean }): 
             return;
         }
 
+        // Ensure log directory exists and open log file for daemon output
+        await fs.ensureDir(path.dirname(PATHS.daemonLogFile));
+        const logFd = fs.openSync(PATHS.daemonLogFile, 'a');
+
         const child = spawn(process.execPath, [
             daemonPath,
             '--config', PATHS.configFile,
         ], {
             detached: true,
-            stdio: ['ignore', 'pipe', 'pipe'],
+            // Use file descriptor directly so daemon doesn't depend on parent's pipes
+            stdio: ['ignore', logFd, logFd],
         });
+
+        // Close the file descriptor in the parent - the child has its own copy
+        fs.closeSync(logFd);
 
         // Write PID file
         await fs.writeFile(PATHS.daemonPidFile, child.pid!.toString());
-
-        // Redirect output to log file
-        const logStream = fs.createWriteStream(PATHS.daemonLogFile, { flags: 'a' });
-        child.stdout?.pipe(logStream);
-        child.stderr?.pipe(logStream);
 
         child.unref();
 

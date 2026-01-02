@@ -131,10 +131,12 @@ const monitor = program
     .option('-p, --port <number>', 'HTTP server port')
     .option('-w, --ws-port <number>', 'WebSocket server port')
     .option('--no-open', 'Do not open browser automatically')
+    .option('-f, --foreground', 'Run server in foreground (blocking)')
     .action((options) => monitorStartCommand({
         port: options.port ? parseInt(options.port) : undefined,
         wsPort: options.wsPort ? parseInt(options.wsPort) : undefined,
         noOpen: options.open === false,
+        foreground: options.foreground,
     }));
 
 // Subcommand: monitor init
@@ -152,10 +154,12 @@ monitor
     .option('-p, --port <number>', 'HTTP server port')
     .option('-w, --ws-port <number>', 'WebSocket server port')
     .option('--no-open', 'Do not open browser automatically')
+    .option('-f, --foreground', 'Run server in foreground (blocking)')
     .action((options) => monitorStartCommand({
         port: options.port ? parseInt(options.port) : undefined,
         wsPort: options.wsPort ? parseInt(options.wsPort) : undefined,
         noOpen: options.open === false,
+        foreground: options.foreground,
     }));
 
 // Subcommand: monitor stop

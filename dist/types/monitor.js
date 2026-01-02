@@ -52,5 +52,7 @@ function getDefaultMonitorPaths() {
         daemonPidFile: path.join(baseDir, 'daemon.pid'),
         daemonLogFile: path.join(baseDir, 'daemon.log'),
         daemonStateFile: path.join(baseDir, 'daemon.state.json'),
+        serverPidFile: path.join(baseDir, 'server.pid'),
+        serverLogFile: path.join(baseDir, 'server.log'),
     };
 }

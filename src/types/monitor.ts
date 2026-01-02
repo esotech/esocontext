@@ -282,6 +282,8 @@ export function getDefaultMonitorPaths(): MonitorPaths {
     daemonPidFile: path.join(baseDir, 'daemon.pid'),
     daemonLogFile: path.join(baseDir, 'daemon.log'),
     daemonStateFile: path.join(baseDir, 'daemon.state.json'),
+    serverPidFile: path.join(baseDir, 'server.pid'),
+    serverLogFile: path.join(baseDir, 'server.log'),
   };
 }
 
@@ -507,6 +509,10 @@ export interface MonitorPaths {
   daemonLogFile: string;
   /** Daemon state file: ~/.contextuate/monitor/daemon.state.json */
   daemonStateFile: string;
+  /** Server PID file: ~/.contextuate/monitor/server.pid */
+  serverPidFile: string;
+  /** Server log file: ~/.contextuate/monitor/server.log */
+  serverLogFile: string;
 }
 
 /**

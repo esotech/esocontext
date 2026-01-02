@@ -20,6 +20,7 @@ export declare function monitorStartCommand(options: {
     port?: number;
     wsPort?: number;
     noOpen?: boolean;
+    foreground?: boolean;
 }): Promise<void>;
 /**
  * Stop monitor server command

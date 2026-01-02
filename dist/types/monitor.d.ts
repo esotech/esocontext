@@ -423,6 +423,10 @@ export interface MonitorPaths {
     daemonLogFile: string;
     /** Daemon state file: ~/.contextuate/monitor/daemon.state.json */
     daemonStateFile: string;
+    /** Server PID file: ~/.contextuate/monitor/server.pid */
+    serverPidFile: string;
+    /** Server log file: ~/.contextuate/monitor/server.log */
+    serverLogFile: string;
 }
 /**
  * Pending subagent spawn information
